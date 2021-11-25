@@ -48,6 +48,7 @@ public:
     // start listen and wait for accept new connection
     void start(const char* strip, unsigned short port);
 
+    inline EventLoop* get_loop() const { return loop_; }
     inline void set_connection_callback(const ConnectionCallback& cb)
     {
         connection_callback_ = cb;
@@ -63,7 +64,7 @@ public:
 
 private:
     void stop();
-    void async_accept();
+    void accept_loop();
     void handle_accept(const TcpConnectionPtr& conn, const boost::system::error_code& ec);
     //void handle_accept(const boost::system::error_code& error, boost::asio::ip::tcp::socket peer);
 

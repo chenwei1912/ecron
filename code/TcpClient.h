@@ -8,10 +8,12 @@
 
 
 #include <functional>
+#include <atomic>
 
 #include <boost/asio.hpp>
 
 #include "TcpConnection.h"
+#include "TimerId.h"
 
 
 namespace netlib
@@ -31,9 +33,10 @@ public:
     TcpClient(const TcpClient&) = delete;
     TcpClient& operator=(const TcpClient&) = delete;
 
-    void connect(const char* strip, unsigned short port, size_t seconds = 5);
+    bool connect(const char* strip, unsigned short port, size_t interval = 10);
     void disconnect();
 
+    inline EventLoop* get_loop() const { return loop_; }
     inline void set_connection_callback(const ConnectionCallback& cb)
     {
         connection_callback_ = cb;
@@ -48,12 +51,12 @@ public:
     }
 
 private:
-    void async_connect();
-    void async_timer(size_t seconds);
+    void connect_loop();
+    void disconnect_loop();
 
     
     void handle_connect(const boost::system::error_code& ec);
-    void handle_timeout(const boost::system::error_code& ec);
+    void handle_timeout();
 
     void remove_conn(const TcpConnectionPtr& conn);
     void remove_conn_loop(const TcpConnectionPtr& conn);
@@ -61,7 +64,9 @@ private:
     EventLoop* loop_;
     TcpConnectionPtr conn_;
     boost::asio::ip::tcp::endpoint ep_;
-    size_t timeout_;
+    size_t interval_;
+    TimerId timer_;
+    std::atomic_flag connecting_;
 
     ConnectionCallback connection_callback_;
     RecvCallback recv_callback_;

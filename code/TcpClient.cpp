@@ -6,13 +6,11 @@ using namespace netlib;
 using namespace boost::asio;
 
 
-const size_t TcpClient::Intervals = 10;
-
-
 TcpClient::TcpClient(EventLoop* loop)
     : loop_(loop)
     //, conn_(std::make_shared<TcpConnection>(loop))
-    , timeout_(0)
+    , interval_(0)
+    , connecting_(ATOMIC_FLAG_INIT)
     //, recv_callback_(default_recv_callback)
 {
 }
@@ -22,35 +20,34 @@ TcpClient::~TcpClient()
     LOGGER.write_log(LL_Debug, "TcpClient dtor");
 }
 
-void TcpClient::connect(const char* strip, unsigned short port, size_t seconds)
+bool TcpClient::connect(const char* strip, unsigned short port, size_t interval)
 {
-    if (0 == port || 0 == seconds)
-        return;
+    if (0 == port || 0 == interval)
+        return false;
 
-    if (conn_) // thread safe?
-        return;
+    if (connecting_.test_and_set())
+        return false;
 
     //ip::tcp::endpoint ep(ip::address_v4::from_string(strip), port);
     ep_.address(ip::address_v4::from_string(strip));
     ep_.port(port);
-    timeout_ = seconds;
+    interval_ = interval;
 
-    loop_->dispatch(std::bind(&TcpClient::async_connect, this));
+    loop_->dispatch(std::bind(&TcpClient::connect_loop, this));
 }
 
 void TcpClient::disconnect()
 {
-    if (conn_) // thread safe?
-        conn_->close();
+    if (!connecting_.test_and_set()) {
+        connecting_.clear();
+        return;
+    }
+    loop_->dispatch(std::bind(&TcpClient::disconnect_loop, this));
 }
 
-void TcpClient::async_connect()
+void TcpClient::connect_loop()
 {
-    //async_timer(timeout_);
-//    std::bind(&TcpClient::handle_timeout,
-//                        this, std::placeholders::_1)
-
-    conn_ = std::make_shared<TcpConnection>(loop_); // thread safe?
+    conn_ = std::make_shared<TcpConnection>(loop_);
     conn_->set_connection_callback(connection_callback_);
     conn_->set_recv_callback(recv_callback_);
     conn_->set_sendcomplete_callback(sendcomplete_callback_);
@@ -61,46 +58,50 @@ void TcpClient::async_connect()
                                         this, std::placeholders::_1));
 }
 
+void TcpClient::disconnect_loop()
+{
+    loop_->del_timer(timer_);
+    if (conn_) // connecting state
+        if (conn_->connected()) // established
+            conn_->close();
+        else // try async connect
+            conn_->get_socket().close();
+    else // waiting state
+        connecting_.clear();
+}
+
 void TcpClient::handle_connect(const boost::system::error_code& ec)
 {
-    if (ec) {
-        LOGGER.write_log(LL_Error, "handle_connect error : {}", ec.value());
-        
-//        if (boost::asio::error::connection_refused == ec.value()) {
-//            std::cout << "connect is refused" << ec.value() << std::endl;
-//        }
-//        if (boost::asio::error::operation_aborted == ec.value()) { // timeout?
-//            //if (!conn_->get_socket().is_open())
-//            std::cout << "connect is cancel timeout" << ec.value() << std::endl;
-//        }
+    if (conn_->get_socket().is_open())
+        LOGGER.write_log(LL_Debug, "TcpClient socket is opened");
 
-        if (conn_)
-            conn_.reset();
-        //async_timer(Intervals); // wait intervals to restart connect
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpClient connect error : {}", ec.value());
+
+        conn_.reset();
+        if (boost::asio::error::operation_aborted == ec.value()) {
+            connecting_.clear();
+            return;
+        }
+
+        // wait interval to restart connect
+        timer_ = loop_->add_timer(interval_, std::bind(&TcpClient::handle_timeout, this));
         return;
     }
 
     conn_->handle_establish();
 }
 
-void TcpClient::handle_timeout(const boost::system::error_code& ec)
+void TcpClient::handle_timeout()
 {
-    if (ec)
-        return;
-
-    // log connect timeout
-    if (conn_) {
-        LOGGER.write_log(LL_Info, "connect timeout, close socket");
-        conn_->get_socket().close(); // cancel connect and close socket
-    } else {
-        LOGGER.write_log(LL_Info, "interval elapsed, restart connect...");
-        async_connect(); // restart connect
-    }
+    LOGGER.write_log(LL_Info, "interval elapsed, restart connect...");
+    connect_loop();
 }
 
 void TcpClient::remove_conn(const TcpConnectionPtr& conn)
 {
     //assert(conn_ == conn);
     conn_.reset();
+    connecting_.clear();
 }
 

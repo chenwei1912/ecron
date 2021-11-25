@@ -4,10 +4,10 @@ DIR_SRC = .
 DIR_OBJ = ../build
 DIR_BIN = ../bin
 
-SRCS = $(DIR_SRC)/server.cpp
+SRCS = $(DIR_SRC)/echo.cpp
 OBJS = $(patsubst %.cpp,${DIR_OBJ}/%.o,$(notdir ${SRCS}))
 DEPS = $(patsubst %.cpp,${DIR_OBJ}/%.d,$(notdir ${SRCS}))
-TARGET = $(DIR_BIN)/server
+TARGET = $(DIR_BIN)/echo
 
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall

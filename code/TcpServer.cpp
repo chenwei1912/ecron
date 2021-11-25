@@ -65,7 +65,7 @@ void TcpServer::start(const char* strip, unsigned short port)
 
     pool_.start();
 
-    async_accept();
+    loop_->post(std::bind(&TcpServer::accept_loop, this));
     
 }
 
@@ -84,11 +84,11 @@ void TcpServer::stop()
     connections_.clear();
 }
 
-void TcpServer::async_accept()
+void TcpServer::accept_loop()
 {
     // ensure connection's all callback function
     // is called in relate io_context
-    EventLoop* ioloop = pool_.get_loop();
+    EventLoop* ioloop = pool_.get_nextloop();
     auto conn = std::make_shared<TcpConnection>(ioloop);
     conn->set_connection_callback(connection_callback_);
     conn->set_recv_callback(recv_callback_);
@@ -121,7 +121,7 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
         ioloop->post(std::bind(&TcpConnection::handle_establish, conn));
     } while (false);
 
-    async_accept();
+    accept_loop();
 }
 
 //void TcpServer::handle_accept(const boost::system::error_code& ec, 

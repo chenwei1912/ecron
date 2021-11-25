@@ -58,7 +58,7 @@ void EventLoopPool::stop()
     loops_.clear();
 }
 
-EventLoop* EventLoopPool::get_loop()
+EventLoop* EventLoopPool::get_nextloop()
 {
     // wait for thread running?
     EventLoop* loop = baseloop_;

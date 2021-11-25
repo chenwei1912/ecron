@@ -54,10 +54,10 @@ TcpConnection::~TcpConnection()
 //    //Disconnect(ignored_ec);
 //}
 
-void TcpConnection::assign(boost::asio::ip::tcp::socket& sock)
-{
-    socket_.assign(boost::asio::ip::tcp::v4(), sock.release());
-}
+//void TcpConnection::assign(boost::asio::ip::tcp::socket& sock)
+//{
+//    socket_.assign(boost::asio::ip::tcp::v4(), sock.release());
+//}
 
 void TcpConnection::close()
 {

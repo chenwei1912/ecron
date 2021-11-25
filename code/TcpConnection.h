@@ -41,24 +41,15 @@ public:
     TcpConnection& operator=(const TcpConnection&) = delete;
 
     //void open();
-    void assign(boost::asio::ip::tcp::socket& sock);
+    //void assign(boost::asio::ip::tcp::socket& sock);
     void close(); // active shutdown connection
 
     void send(const char* data, size_t n);
     void handle_establish();
 
-    inline boost::asio::ip::tcp::socket& get_socket()
-    {
-        return socket_;
-    }
-    inline EventLoop* get_loop()
-    {
-        return loop_;
-    }
-    inline bool connected()
-    {
-        return connected_;
-    }
+    inline boost::asio::ip::tcp::socket& get_socket() { return socket_; }
+    inline EventLoop* get_loop() const { return loop_; }
+    inline bool connected() const { return connected_; }
 
     inline void set_connection_callback(const ConnectionCallback& cb)
     {

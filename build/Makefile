@@ -10,7 +10,6 @@ DEPS = $(patsubst %.cpp,${DIR_OBJ}/%.d,$(notdir ${SRCS}))
 
 CXXFLAGS = -std=c++11
 INCLUDEFLAGS = -I../code
-LDFLAGS = -lpthread
 TARGET = $(DIR_BIN)/libnetlib.a
 CXX = g++
 AR = ar

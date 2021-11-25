@@ -32,7 +32,7 @@ public:
     void start();
     void stop();
 
-    EventLoop* get_loop();
+    EventLoop* get_nextloop();
 
 private:
     void run();
