@@ -12,7 +12,6 @@ const size_t TcpClient::Intervals = 10;
 TcpClient::TcpClient(EventLoop* loop)
     : loop_(loop)
     //, conn_(std::make_shared<TcpConnection>(loop))
-    , timer_(loop->get_context())
     , timeout_(0)
     //, recv_callback_(default_recv_callback)
 {
@@ -25,8 +24,9 @@ TcpClient::~TcpClient()
 
 void TcpClient::connect(const char* strip, unsigned short port, size_t seconds)
 {
-    if (nullptr == strip || 0 == port || 0 == 0 == seconds)
+    if (0 == port || 0 == seconds)
         return;
+
     if (conn_) // thread safe?
         return;
 
@@ -46,9 +46,11 @@ void TcpClient::disconnect()
 
 void TcpClient::async_connect()
 {
-    async_timer(timeout_);
+    //async_timer(timeout_);
+//    std::bind(&TcpClient::handle_timeout,
+//                        this, std::placeholders::_1)
 
-    conn_ = std::make_shared<TcpConnection>(loop_);
+    conn_ = std::make_shared<TcpConnection>(loop_); // thread safe?
     conn_->set_connection_callback(connection_callback_);
     conn_->set_recv_callback(recv_callback_);
     conn_->set_sendcomplete_callback(sendcomplete_callback_);
@@ -59,18 +61,8 @@ void TcpClient::async_connect()
                                         this, std::placeholders::_1));
 }
 
-void TcpClient::async_timer(size_t seconds)
-{
-    timer_.expires_after(std::chrono::seconds(seconds));
-    //timer_.expires_from_now(interval_timer);
-    timer_.async_wait(std::bind(&TcpClient::handle_timeout,
-                        this, std::placeholders::_1));
-}
-
 void TcpClient::handle_connect(const boost::system::error_code& ec)
 {
-    timer_.cancel();
-
     if (ec) {
         LOGGER.write_log(LL_Error, "handle_connect error : {}", ec.value());
         
@@ -84,7 +76,7 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
 
         if (conn_)
             conn_.reset();
-        async_timer(Intervals); // wait intervals to restart connect
+        //async_timer(Intervals); // wait intervals to restart connect
         return;
     }
 

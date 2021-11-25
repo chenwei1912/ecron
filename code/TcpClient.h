@@ -61,7 +61,6 @@ private:
     EventLoop* loop_;
     TcpConnectionPtr conn_;
     boost::asio::ip::tcp::endpoint ep_;
-    boost::asio::steady_timer timer_; // improve batch process using timewheel
     size_t timeout_;
 
     ConnectionCallback connection_callback_;
