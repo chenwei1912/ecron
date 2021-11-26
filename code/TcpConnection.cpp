@@ -10,8 +10,9 @@ using namespace netlib;
 
 
 
-TcpConnection::TcpConnection(EventLoop* loop)
+TcpConnection::TcpConnection(EventLoop* loop, const std::string& name)
     : loop_(loop)
+    , name_(name)
     , socket_(loop->get_context())
     //, socket_(loop->get_context(), boost::asio::ip::tcp::v4(), sock.release())
     , connected_(false)
@@ -21,7 +22,7 @@ TcpConnection::TcpConnection(EventLoop* loop)
 
 TcpConnection::~TcpConnection()
 {
-    LOGGER.write_log(LL_Debug, "TcpConnection dtor");
+    LOGGER.write_log(LL_Trace, "TcpConnection[{}] destructing", name_);
     //boost::system::error_code ignored_ec;
     if (socket_.is_open())
     {
@@ -32,27 +33,17 @@ TcpConnection::~TcpConnection()
     send_buffer_.clear();
 }
 
-//void TcpConnection::open()
-//{
-//    do {
-//        boost::asio::ip::tcp::no_delay delayOption(true);
-//        socket_.set_option(delayOption);
+void TcpConnection::init()
+{
+    boost::asio::ip::tcp::no_delay delayOption(true);
+    socket_.set_option(delayOption);
 
-//        boost::asio::socket_base::linger lingerOption(true, 0);
-//        socket_.set_option(lingerOption);
+    boost::asio::socket_base::linger lingerOption(true, 0);
+    socket_.set_option(lingerOption);
 
-//        boost::asio::ip::tcp::endpoint peer = socket_.remote_endpoint();
-
-//        connected_ = true;
-
-//        //memset(recv_buffer_, 0, sizeof(recv_buffer_));
-//        async_recv();
-//        return;
-//    } while (false);
-
-//    //boost::system::error_code ignored_ec;
-//    //Disconnect(ignored_ec);
-//}
+    remote_ep_ = socket_.remote_endpoint();
+    local_ep_ = socket_.local_endpoint();
+}
 
 //void TcpConnection::assign(boost::asio::ip::tcp::socket& sock)
 //{
@@ -68,7 +59,7 @@ void TcpConnection::close_loop()
 {
     if (connected_)
     {
-        LOGGER.write_log(LL_Info, "local shutdown connection");
+        LOGGER.write_log(LL_Info, "TcpConnection[{}] local shutdown", name_);
 
         boost::system::error_code ignored_ec;
         socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
@@ -79,7 +70,7 @@ void TcpConnection::close_loop()
 
 void TcpConnection::send(const char* data, size_t n)
 {
-    if (nullptr == data || 0 == n || !connected_)
+    if (nullptr == data || 0 == n)
         return;
 
     // copy data to buffer because data is probably invalid when leave this function
@@ -91,10 +82,12 @@ void TcpConnection::send(const char* data, size_t n)
 
 void TcpConnection::send_loop(BufferPtr b)
 {
-    bool sending = !send_buffer_.empty();
-    send_buffer_.push_back(b);
-    if (!sending) // not sending, start sending!
-        async_send();
+    if (connected_) {
+        bool sending = !send_buffer_.empty();
+        send_buffer_.push_back(b);
+        if (!sending) // not sending, start sending!
+            async_send();
+    }
 }
 
 void TcpConnection::async_recv()
@@ -118,6 +111,20 @@ void TcpConnection::async_send()
                 std::placeholders::_1, std::placeholders::_2));
 }
 
+void TcpConnection::handle_establish()
+{
+    connected_ = true;
+
+    async_recv();
+
+    LOGGER.write_log(LL_Info, "TcpConnection[{}] establish: local[{}:{}] remote[{}:{}]", 
+                        name_, local_ep_.address().to_v4().to_string(), local_ep_.port(), 
+                        remote_ep_.address().to_v4().to_string(), remote_ep_.port());
+
+    if (connection_callback_)
+        connection_callback_(shared_from_this());
+}
+
 void TcpConnection::handle_recv(const boost::system::error_code& ec, size_t trans)
 {
     if (ec) {
@@ -125,7 +132,7 @@ void TcpConnection::handle_recv(const boost::system::error_code& ec, size_t tran
         return;
     }
 
-    LOGGER.write_log(LL_Debug, "TcpConnection recv data, len:{}", trans);
+    //LOGGER.write_log(LL_Trace, "TcpConnection recv data, len:{}", trans);
 
     // handle data
     recv_buffer_.has_written(trans);
@@ -143,7 +150,7 @@ void TcpConnection::handle_send(const boost::system::error_code& ec, size_t tran
         return;
     }
 
-    LOGGER.write_log(LL_Debug, "TcpConnection send data, len:{}", trans);
+    //LOGGER.write_log(LL_Trace, "TcpConnection send data, len:{}", trans);
 
     if (!send_buffer_.empty()) {
         //send_buffer_.front()->has_readed(trans);
@@ -157,33 +164,7 @@ void TcpConnection::handle_send(const boost::system::error_code& ec, size_t tran
         async_send();
 }
 
-void TcpConnection::handle_establish()
-{
-    do {
-        boost::asio::ip::tcp::no_delay delayOption(true);
-        socket_.set_option(delayOption);
 
-        boost::asio::socket_base::linger lingerOption(true, 0);
-        socket_.set_option(lingerOption);
-
-        boost::asio::ip::tcp::endpoint peer = socket_.remote_endpoint();
-
-        LOGGER.write_log(LL_Info, "tcp connection is established");
-
-        // log peer
-        connected_ = true;
-
-        async_recv();
-
-        if (connection_callback_) // connection established
-            connection_callback_(shared_from_this());
-
-        return;
-    } while (false);
-
-    //boost::system::error_code ignored_ec;
-    //Disconnect(ignored_ec);
-}
 
 void TcpConnection::handle_close()
 {
@@ -194,15 +175,13 @@ void TcpConnection::handle_close()
     // 10061 boost::asio::error::connection_refused
     if (connected_)
     {
-        LOGGER.write_log(LL_Info, "peer shutdown connection");
+        LOGGER.write_log(LL_Info, "TcpConnection[{}] peer shutdown", name_);
 
         boost::system::error_code ignored_ec;
         socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
         //socket_.close(ignored_ec);
         connected_ = false;
     }
-
-    LOGGER.write_log(LL_Info, "tcp connection is closed");
 
     //TcpConnectionPtr guard(shared_from_this());
     if (connection_callback_)
@@ -212,4 +191,23 @@ void TcpConnection::handle_close()
         close_callback_(shared_from_this()); // guard
 }
 
+std::string TcpConnection::local_ip() const
+{
+    return local_ep_.address().to_v4().to_string();
+}
+
+uint16_t TcpConnection::local_port() const
+{
+    return local_ep_.port();
+}
+
+std::string TcpConnection::remote_ip() const
+{
+    return remote_ep_.address().to_v4().to_string();
+}
+
+uint16_t TcpConnection::remote_port() const
+{
+    return remote_ep_.port();
+}
 

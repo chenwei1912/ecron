@@ -27,13 +27,13 @@ class TcpClient
 public:
     static const size_t Intervals;
 
-    explicit TcpClient(EventLoop* loop);
+    TcpClient(EventLoop* loop, const std::string& name);
     ~TcpClient();
 
     TcpClient(const TcpClient&) = delete;
     TcpClient& operator=(const TcpClient&) = delete;
 
-    bool connect(const char* strip, unsigned short port, size_t interval = 10);
+    bool connect(const char* strip, uint16_t port, size_t interval = 10);
     void disconnect();
 
     inline EventLoop* get_loop() const { return loop_; }
@@ -62,6 +62,7 @@ private:
     void remove_conn_loop(const TcpConnectionPtr& conn);
 
     EventLoop* loop_;
+    const std::string name_;
     TcpConnectionPtr conn_;
     boost::asio::ip::tcp::endpoint ep_;
     size_t interval_;

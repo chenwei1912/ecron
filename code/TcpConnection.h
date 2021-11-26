@@ -34,22 +34,28 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
 public:
 
-    explicit TcpConnection(EventLoop* loop); //boost::asio::ip::tcp::socket& sock
+    TcpConnection(EventLoop* loop, const std::string& name);
     ~TcpConnection();
 
     TcpConnection(const TcpConnection&) = delete;
     TcpConnection& operator=(const TcpConnection&) = delete;
 
-    //void open();
+    void init();
     //void assign(boost::asio::ip::tcp::socket& sock);
     void close(); // active shutdown connection
 
     void send(const char* data, size_t n);
     void handle_establish();
 
-    inline boost::asio::ip::tcp::socket& get_socket() { return socket_; }
+    inline boost::asio::ip::tcp::socket& get_socket() { return socket_; } // internal use
     inline EventLoop* get_loop() const { return loop_; }
+    inline const std::string& name() const { return name_; }
     inline bool connected() const { return connected_; }
+
+    std::string local_ip() const;
+    uint16_t local_port() const;
+    std::string remote_ip() const;
+    uint16_t remote_port() const;
 
     inline void set_connection_callback(const ConnectionCallback& cb)
     {
@@ -71,7 +77,6 @@ public:
 private:
     void send_loop(BufferPtr b);
     void close_loop();
-    //void disconnect();
     void async_recv();
     void async_send(); // const BufferPtr& ?
 
@@ -80,9 +85,12 @@ private:
     void handle_close();
 
     EventLoop* loop_;
+    const std::string name_;
     boost::asio::ip::tcp::socket socket_;
+    boost::asio::ip::tcp::endpoint remote_ep_;
+    boost::asio::ip::tcp::endpoint local_ep_;
 
-    bool connected_; // atomic
+    bool connected_; // fixme atomic
 
     Buffer recv_buffer_;
 	//Buffer send_buffer_;

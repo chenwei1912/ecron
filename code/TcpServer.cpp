@@ -14,17 +14,19 @@ void default_recv_callback(const netlib::TcpConnectionPtr& conn,
 }
 
 
-TcpServer::TcpServer(EventLoop* loop)
+TcpServer::TcpServer(EventLoop* loop, const std::string& name)
     : loop_(loop)
+    , name_(name)
     , acceptor_(loop->get_context())
     , pool_(loop)
+    , count_(0)
     , recv_callback_(default_recv_callback)
 {
 }
 
 TcpServer::~TcpServer()
 {
-    LOGGER.write_log(LL_Debug, "TcpServer dtor");
+    LOGGER.write_log(LL_Trace, "TcpServer [{}] destructing", name_);
     stop();
 }
 
@@ -33,40 +35,44 @@ void TcpServer::set_io_threads(size_t n)
     pool_.set_threads(n);
 }
 
-void TcpServer::start(const char* strip, unsigned short port)
+bool TcpServer::start(const char* strip, uint16_t port)
 {
-    ip::tcp::endpoint ep(ip::address_v4::from_string(strip), port);
+    ip::tcp::endpoint ep(ip::make_address(strip), port);
     //ip::tcp::endpoint ep(boost::asio::ip::tcp::v4(), port);
 
     boost::system::error_code ec;
     acceptor_.open(ep.protocol(), ec);
     if (ec)
-        return;
+        return false;
 
     // prefer SO_EXCLUSIVEADDRUSE on Windows
     boost::asio::socket_base::reuse_address reuseOption(true);
     acceptor_.set_option(reuseOption, ec);
     if (ec)
-        return;
+        return false;
 
     boost::asio::socket_base::enable_connection_aborted abortOption(true);
     acceptor_.set_option(abortOption, ec);
     if (ec)
-        return;
+        return false;
 
     acceptor_.bind(ep, ec);
     if (ec)
-        return;
+        return false;
 
     // start listen
     acceptor_.listen(socket_base::max_connections, ec);
     if (ec)
-        return;
+        return false;
 
+    // start io pool
     pool_.start();
 
     loop_->post(std::bind(&TcpServer::accept_loop, this));
-    
+
+    ipport_ = fmt::format("{}:{}", strip, port);
+    LOGGER.write_log(LL_Info, "TcpServer[{}] start listen on {}", name_, ipport_);
+    return true;
 }
 
 void TcpServer::stop()
@@ -88,8 +94,11 @@ void TcpServer::accept_loop()
 {
     // ensure connection's all callback function
     // is called in relate io_context
+    ++count_;
+    std::string name = fmt::format("{}-{}#{}", name_, ipport_, count_);
+
     EventLoop* ioloop = pool_.get_nextloop();
-    auto conn = std::make_shared<TcpConnection>(ioloop);
+    auto conn = std::make_shared<TcpConnection>(ioloop, name);
     conn->set_connection_callback(connection_callback_);
     conn->set_recv_callback(recv_callback_);
     conn->set_sendcomplete_callback(sendcomplete_callback_);
@@ -117,6 +126,11 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
         }
 
         connections_.insert(conn);
+
+        conn->init();
+        LOGGER.write_log(LL_Info, "TcpServer[{}] accept connection [{}] from {}:{}", 
+                        name_, conn->name(), conn->remote_ip(), conn->remote_port());
+        
         EventLoop* ioloop = conn->get_loop();
         ioloop->post(std::bind(&TcpConnection::handle_establish, conn));
     } while (false);

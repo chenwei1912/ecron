@@ -28,7 +28,7 @@ class TcpServer
 {
 public:
 
-    explicit TcpServer(EventLoop* loop);
+    TcpServer(EventLoop* loop, const std::string& name);
     ~TcpServer();
 
     TcpServer(const TcpServer&) = delete;
@@ -46,7 +46,7 @@ public:
     void set_io_threads(size_t n);
 
     // start listen and wait for accept new connection
-    void start(const char* strip, unsigned short port);
+    bool start(const char* strip, uint16_t port);
 
     inline EventLoop* get_loop() const { return loop_; }
     inline void set_connection_callback(const ConnectionCallback& cb)
@@ -72,9 +72,12 @@ private:
     void remove_conn_loop(const TcpConnectionPtr& conn);
 
     EventLoop* loop_;
+    const std::string name_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::string ipport_;
     std::unordered_set<TcpConnectionPtr> connections_;
     EventLoopPool pool_;
+    uint32_t count_;
 
     ConnectionCallback connection_callback_;
     RecvCallback recv_callback_;

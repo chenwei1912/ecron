@@ -2,7 +2,7 @@
 
 DIR_SRC = ../code
 DIR_OBJ = .
-DIR_BIN = ../bin
+DIR_BIN = ../output
 
 SRCS = $(wildcard ${DIR_SRC}/*.cpp)
 OBJS = $(patsubst %.cpp,${DIR_OBJ}/%.o,$(notdir ${SRCS}))

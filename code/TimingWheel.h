@@ -30,14 +30,14 @@ namespace netlib
 class Timer
 {
 public:
-    static int Timer_Count; // for calc seq_, atomic?
-    static int generate_timerid();
+    //static int Timer_Count; // for calc seq_, atomic?
+    static uint64_t generate_timerid();
 
     Timer(size_t interval, TimerCallback task, bool repeat)
         : interval_(interval)
         , task_(task)
         , repeat_(repeat)
-        , seq_(generate_timerid())
+        , seq_(num_created_.fetch_add(1))
     {}
 
     //Timer() = default;
@@ -52,10 +52,22 @@ public:
     bool repeat_;
     size_t rotation_; // wheel circle count, no use multiple wheels
     size_t slot_; // slot positon
-    int seq_;
+    uint64_t seq_;
+
+    static std::atomic<uint64_t> num_created_;
 };
 
-//typedef std::pair<Timer*, int> ActiveTimer;
+
+typedef std::pair<Timer*, uint64_t> TimerItem;
+struct pair_hash // user define hash method
+{
+    template <class T1, class T2>
+    std::size_t operator() (const std::pair<T1, T2>& pair) const {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
+//typedef std::unordered_set<TimerItem, pair_hash> Bucket;
+
 typedef std::unordered_set<Timer*> Bucket;
 //typedef std::unordered_set<std::unique_ptr<Timer>> Bucket;
 

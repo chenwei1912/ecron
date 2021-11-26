@@ -20,7 +20,7 @@ class TimerId
 {
 public:
     TimerId() : timer_(nullptr), seq_(0) {}
-    TimerId(Timer* timer, int seq) : timer_(timer), seq_(seq) {}
+    TimerId(Timer* timer, uint64_t seq) : timer_(timer), seq_(seq) {}
 
     ~TimerId() = default;
     TimerId(const TimerId&) = default;
@@ -30,7 +30,7 @@ public:
 
 private:
     Timer* timer_;
-    int seq_;
+    uint64_t seq_;
 };
 
 }

@@ -2,7 +2,7 @@
 
 DIR_SRC = .
 DIR_OBJ = ../build
-DIR_BIN = ../bin
+DIR_BIN = ../output
 
 SRCS = $(DIR_SRC)/echo.cpp
 OBJS = $(patsubst %.cpp,${DIR_OBJ}/%.o,$(notdir ${SRCS}))

@@ -12,7 +12,7 @@ class EchoServer
 public:
     EchoServer(netlib::EventLoop* loop)
         : loop_(loop)
-        , server_(loop)
+        , server_(loop, "EchoServer")
     {
         server_.set_connection_callback(std::bind(&EchoServer::on_connection, 
                 this, std::placeholders::_1));
@@ -60,6 +60,13 @@ void EchoServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
     //std::cout << "send data complete." << std::endl;
 }
 
+void idle_timeout()
+{
+    std::cout << "idle do something" << std::endl;
+
+    netlib::LOGGER.flush();
+}
+
 int main(int argc, char* argv[])
 {
     bool ret = netlib::LOGGER.init("echoserver.log");
@@ -72,6 +79,8 @@ int main(int argc, char* argv[])
     netlib::EventLoop loop;
     EchoServer server(&loop);
     server.start("192.168.17.19", 2007);
+
+    loop.add_timer(3, idle_timeout, true);
 
     loop.loop();
 

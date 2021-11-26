@@ -6,9 +6,9 @@ using namespace netlib;
 using namespace boost::asio;
 
 
-TcpClient::TcpClient(EventLoop* loop)
+TcpClient::TcpClient(EventLoop* loop, const std::string& name)
     : loop_(loop)
-    //, conn_(std::make_shared<TcpConnection>(loop))
+    , name_(name)
     , interval_(0)
     , connecting_(ATOMIC_FLAG_INIT)
     //, recv_callback_(default_recv_callback)
@@ -17,10 +17,10 @@ TcpClient::TcpClient(EventLoop* loop)
 
 TcpClient::~TcpClient()
 {
-    LOGGER.write_log(LL_Debug, "TcpClient dtor");
+    LOGGER.write_log(LL_Trace, "TcpClient [{}] destructing", name_);
 }
 
-bool TcpClient::connect(const char* strip, unsigned short port, size_t interval)
+bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
 {
     if (0 == port || 0 == interval)
         return false;
@@ -29,9 +29,10 @@ bool TcpClient::connect(const char* strip, unsigned short port, size_t interval)
         return false;
 
     //ip::tcp::endpoint ep(ip::address_v4::from_string(strip), port);
-    ep_.address(ip::address_v4::from_string(strip));
+    ep_.address(ip::make_address_v4(strip));
     ep_.port(port);
     interval_ = interval;
+    LOGGER.write_log(LL_Info, "TcpClient[{}] start connect to {}:{}", name_, strip, port);
 
     loop_->dispatch(std::bind(&TcpClient::connect_loop, this));
 }
@@ -47,7 +48,10 @@ void TcpClient::disconnect()
 
 void TcpClient::connect_loop()
 {
-    conn_ = std::make_shared<TcpConnection>(loop_);
+    std::string name = fmt::format("{}-{}:{}#", 
+            name_, ep_.address().to_v4().to_string(), ep_.port());
+
+    conn_ = std::make_shared<TcpConnection>(loop_, name);
     conn_->set_connection_callback(connection_callback_);
     conn_->set_recv_callback(recv_callback_);
     conn_->set_sendcomplete_callback(sendcomplete_callback_);
@@ -72,8 +76,9 @@ void TcpClient::disconnect_loop()
 
 void TcpClient::handle_connect(const boost::system::error_code& ec)
 {
-    if (conn_->get_socket().is_open())
-        LOGGER.write_log(LL_Debug, "TcpClient socket is opened");
+      // success or not, the socket was automatically opened
+//    if (conn_->get_socket().is_open())
+//        LOGGER.write_log(LL_Debug, "TcpClient socket is opened");
 
     if (ec) {
         LOGGER.write_log(LL_Error, "TcpClient connect error : {}", ec.value());
@@ -89,6 +94,9 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
         return;
     }
 
+    LOGGER.write_log(LL_Info, "TcpClient[{}] establish connection to {}:{}", 
+                        name_, ep_.address().to_v4().to_string(), ep_.port());
+    conn_->init();
     conn_->handle_establish();
 }
 

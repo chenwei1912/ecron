@@ -1,3 +1,3 @@
 all:
-	mkdir -p bin
+	mkdir -p output
 	cd build && make

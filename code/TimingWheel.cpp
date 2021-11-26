@@ -14,17 +14,19 @@ using namespace netlib;
 using namespace boost::asio;
 
 
+std::atomic<uint64_t> Timer::num_created_;
 //const int TimingWheel::Count_Ticks = 60;
 const size_t TimingWheel::Interval_Tick; // is not use in h file
-int Timer::Timer_Count = 0;
+//int Timer::Timer_Count = 0;
 
 
-int Timer::generate_timerid()
+uint64_t Timer::generate_timerid()
 {
 	int x = rand() % 0xffffffff;
 	int cur_time = time(nullptr);
-	int ret = x | cur_time | Timer_Count;
-	++Timer_Count;
+	uint64_t num = num_created_.fetch_add(1);
+	uint64_t ret = x | cur_time | num;
+	//++Timer_Count;
 	return ret;
 }
 
