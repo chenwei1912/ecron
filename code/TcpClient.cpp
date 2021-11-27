@@ -35,6 +35,7 @@ bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
     LOGGER.write_log(LL_Info, "TcpClient[{}] start connect to {}:{}", name_, strip, port);
 
     loop_->dispatch(std::bind(&TcpClient::connect_loop, this));
+    return true;
 }
 
 void TcpClient::disconnect()

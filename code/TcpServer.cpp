@@ -191,7 +191,7 @@ void TcpServer::remove_conn(const TcpConnectionPtr& conn)
 void TcpServer::remove_conn_loop(const TcpConnectionPtr& conn)
 {
     //LOGGER.write_log(LL_Info, "TcpServer disconnect a connection");
-    size_t n = connections_.erase(conn);
+    connections_.erase(conn);
     //assert(n == 1);
 }
 

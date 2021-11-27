@@ -8,9 +8,9 @@ using namespace netlib;
 
 
 EventLoop::EventLoop()
-    : stop_(false)
+    : guard_(io_context_.get_executor()) //boost::asio::make_work_guard(io_context_)
+    , stop_(false)
     //, thread_(std::this_thread::get_id())
-    , guard_(io_context_.get_executor()) //boost::asio::make_work_guard(io_context_)
     , tw_(new TimingWheel(this))
 {
 }

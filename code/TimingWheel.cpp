@@ -61,7 +61,7 @@ void TimingWheel::start()
 
 void TimingWheel::stop()
 {
-    size_t n = timer_.cancel();
+    timer_.cancel();
     //assert(n == 1);
 }
 
