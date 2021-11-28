@@ -68,6 +68,7 @@ private:
     size_t interval_;
     TimerId timer_;
     std::atomic_flag connecting_;
+    uint32_t count_;
 
     ConnectionCallback connection_callback_;
     RecvCallback recv_callback_;

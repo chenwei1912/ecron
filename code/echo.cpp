@@ -25,6 +25,7 @@ public:
 
     void start(const char* strip, unsigned short port)
     {
+        server_.set_io_threads(2);
         server_.start(strip, port);
     }
 
@@ -40,11 +41,12 @@ private:
 void EchoServer::on_connection(const netlib::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
-        std::cout << "tcp connection coming" << std::endl;
+        //std::cout << "tcp connection coming" << std::endl;
         //_timerid = conn->get_loop()->add_timer(10, std::bind(connection_timeout, conn));
     }
-    else
-        std::cout << "tcp connection closed" << std::endl;
+    else {
+        //std::cout << "tcp connection closed" << std::endl;
+    }
 }
 void EchoServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
 {
@@ -62,8 +64,6 @@ void EchoServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 
 void idle_timeout()
 {
-    std::cout << "idle do something" << std::endl;
-
     netlib::LOGGER.flush();
 }
 

@@ -11,13 +11,14 @@ TcpClient::TcpClient(EventLoop* loop, const std::string& name)
     , name_(name)
     , interval_(0)
     , connecting_(ATOMIC_FLAG_INIT)
+    , count_(1)
     //, recv_callback_(default_recv_callback)
 {
 }
 
 TcpClient::~TcpClient()
 {
-    LOGGER.write_log(LL_Trace, "TcpClient [{}] destructing", name_);
+    LOGGER.write_log(LL_Trace, "TcpClient[{}] destructing", name_);
 }
 
 bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
@@ -34,7 +35,7 @@ bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
     interval_ = interval;
     LOGGER.write_log(LL_Info, "TcpClient[{}] start connect to {}:{}", name_, strip, port);
 
-    loop_->dispatch(std::bind(&TcpClient::connect_loop, this));
+    loop_->post(std::bind(&TcpClient::connect_loop, this));
     return true;
 }
 
@@ -49,8 +50,8 @@ void TcpClient::disconnect()
 
 void TcpClient::connect_loop()
 {
-    std::string name = fmt::format("{}-{}:{}#", 
-            name_, ep_.address().to_v4().to_string(), ep_.port());
+    std::string name = fmt::format("{}-{}:{}#{}", 
+            name_, ep_.address().to_v4().to_string(), ep_.port(), count_);
 
     conn_ = std::make_shared<TcpConnection>(loop_, name);
     conn_->set_connection_callback(connection_callback_);
@@ -82,7 +83,7 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
 //        LOGGER.write_log(LL_Debug, "TcpClient socket is opened");
 
     if (ec) {
-        LOGGER.write_log(LL_Error, "TcpClient connect error : {}", ec.value());
+        LOGGER.write_log(LL_Error, "TcpClient[{}] connect error : {}", name_, ec.value());
 
         conn_.reset();
         if (boost::asio::error::operation_aborted == ec.value()) {
@@ -95,15 +96,16 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
         return;
     }
 
-    LOGGER.write_log(LL_Info, "TcpClient[{}] establish connection to {}:{}", 
-                        name_, ep_.address().to_v4().to_string(), ep_.port());
+    ++count_;
     conn_->init();
+    LOGGER.write_log(LL_Info, "TcpClient[{}] establish connection to {}:{}", 
+                        name_, conn_->remote_ip(), conn_->remote_port());
     conn_->handle_establish();
 }
 
 void TcpClient::handle_timeout()
 {
-    LOGGER.write_log(LL_Info, "interval elapsed, restart connect...");
+    LOGGER.write_log(LL_Debug, "TcpClient[{}] interval elapsed, restart connect...", name_);
     connect_loop();
 }
 

@@ -28,15 +28,32 @@ public:
     bool init(const char* file, bool truncate = false);
     void release();
 
+//    void myprint()
+//    {
+//        std::cout << std::endl;
+//    }
 
-    template<typename... Tn>
-    void write_log(LogLevel lv, const char* fmt, const Tn&... tn)
+//    template <typename T, typename... Args>
+//    void myprint(T head, Args... rest)
+//    {
+//       std::cout << head << ", ";
+//       myprint(rest...);
+//    }
+
+    template<typename... Args>
+    void write_log(LogLevel lv, fmt::string_view format_str, Args&&... args)
     {
-        if (filter_level(lv) || nullptr == fmt)
+        if (filter_level(lv))
             return;
 
-        std::string msg = fmt::format(fmt, tn...);
+//        try {
+        std::string msg = fmt::format(format_str, args...);
         log_string(lv, msg);
+//        } catch (const fmt::v5::format_error& ex) {
+//            std::cout << "format_error - " << sizeof...(args) << " - "<< format_str.data() << std::endl;
+//            myprint(args...);
+//            return;
+//        }
     }
 
     void flush();

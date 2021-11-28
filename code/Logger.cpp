@@ -2,7 +2,6 @@
 #include "Logger.h"
 
 #include <memory>
-#include <iostream>
 //#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE // file name and line number
 //#include "spdlog/spdlog.h"
 //#include "spdlog/common.h"

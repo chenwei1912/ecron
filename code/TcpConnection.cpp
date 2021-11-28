@@ -23,12 +23,9 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name)
 TcpConnection::~TcpConnection()
 {
     LOGGER.write_log(LL_Trace, "TcpConnection[{}] destructing", name_);
-    //boost::system::error_code ignored_ec;
+
     if (socket_.is_open())
-    {
-        //std::cout << "open socket closed" << std::endl;
         socket_.close();
-    }
 
     send_buffer_.clear();
 }
