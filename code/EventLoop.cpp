@@ -8,7 +8,8 @@ using namespace netlib;
 
 
 EventLoop::EventLoop()
-    : guard_(io_context_.get_executor()) //boost::asio::make_work_guard(io_context_)
+    : io_context_(1) // single thread
+    , guard_(io_context_.get_executor()) //boost::asio::make_work_guard(io_context_)
     , stop_(false)
     //, thread_(std::this_thread::get_id())
     , tw_(new TimingWheel(this))
@@ -18,43 +19,6 @@ EventLoop::EventLoop()
 EventLoop::~EventLoop()
 {
     LOGGER.write_log(LL_Trace, "EventLoop {} destructing", static_cast<void*>(this));
-}
-
-void EventLoop::post(std::function<void()> f)
-{
-    boost::asio::post(io_context_, f); // thread safe
-}
-
-void EventLoop::dispatch(std::function<void()> f)
-{
-    //boost::asio::dispatch(io_context_, f);
-
-    if (in_loopthread())
-        f();
-    else
-        boost::asio::post(io_context_, f);
-}
-
-void EventLoop::stop()
-{
-    //stop_ = true;
-    //work_.reset();
-    io_context_.stop();
-}
-
-TimerId EventLoop::add_timer(size_t interval, TimerCallback task, bool repeat)
-{
-    return tw_->add_timer(interval, task, repeat);
-}
-
-void EventLoop::del_timer(TimerId tid)
-{
-    tw_->del_timer(tid);
-}
-
-bool EventLoop::in_loopthread()
-{
-    return (thread_ == std::this_thread::get_id());
 }
 
 void EventLoop::loop()
@@ -72,5 +36,48 @@ void EventLoop::loop()
     io_context_.run();
 
     LOGGER.write_log(LL_Trace, "EventLoop {} stop looping", static_cast<void*>(this));
+}
+
+void EventLoop::stop()
+{
+    //stop_ = true;
+    if (!io_context_.stopped())
+        dispatch(std::bind(&EventLoop::stop_loop, this));
+        //post(std::bind(&boost::asio::io_context::stop, &io_context_));
+}
+
+void EventLoop::post(std::function<void()> f)
+{
+    boost::asio::post(io_context_, f); // thread safe
+}
+
+void EventLoop::dispatch(std::function<void()> f)
+{
+    boost::asio::dispatch(io_context_, f);
+//    if (in_loopthread())
+//        f();
+//    else
+//        boost::asio::post(io_context_, f);
+}
+
+TimerId EventLoop::add_timer(size_t interval, TimerCallback task, bool repeat)
+{
+    return tw_->add_timer(interval, task, repeat);
+}
+
+void EventLoop::del_timer(TimerId tid)
+{
+    tw_->del_timer(tid);
+}
+
+//bool EventLoop::in_loopthread()
+//{
+//    return (thread_ == std::this_thread::get_id());
+//}
+
+void EventLoop::stop_loop()
+{
+    //guard_.reset();
+    io_context_.stop();
 }
 

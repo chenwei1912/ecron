@@ -37,33 +37,43 @@ void TcpServer::set_io_threads(size_t n)
 
 bool TcpServer::start(const char* strip, uint16_t port)
 {
-    ip::tcp::endpoint ep(ip::make_address(strip), port);
+    ip::tcp::endpoint ep(ip::make_address_v4(strip), port);
     //ip::tcp::endpoint ep(boost::asio::ip::tcp::v4(), port);
 
     boost::system::error_code ec;
     acceptor_.open(ep.protocol(), ec);
-    if (ec)
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpServer[{}] socket open error : {}", name_, ec.value());
         return false;
+    }
 
     // prefer SO_EXCLUSIVEADDRUSE on Windows
     boost::asio::socket_base::reuse_address reuseOption(true);
     acceptor_.set_option(reuseOption, ec);
-    if (ec)
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpServer[{}] socket reuse option error : {}", name_, ec.value());
         return false;
+    }
 
     boost::asio::socket_base::enable_connection_aborted abortOption(true);
     acceptor_.set_option(abortOption, ec);
-    if (ec)
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpServer[{}] socket enable_connection_aborted option error : {}", name_, ec.value());
         return false;
+    }
 
     acceptor_.bind(ep, ec);
-    if (ec)
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpServer[{}] socket bing error : {}", name_, ec.value());
         return false;
+    }
 
     // start listen
     acceptor_.listen(socket_base::max_connections, ec);
-    if (ec)
+    if (ec) {
+        LOGGER.write_log(LL_Error, "TcpServer[{}] sokect listen error : {}", name_, ec.value());
         return false;
+    }
 
     // start io pool
     pool_.start();
@@ -116,23 +126,26 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
     do {
         if (ec)
         {
-            //std::cout << "accept operation aborted" << std::endl;
+            --count_;
 
+            // 995	 boost::asio::error::operation_aborted
+            // 24    boost::asio::error::no_descriptors
+            LOGGER.write_log(LL_Error, "TcpServer[{}] accept error: {}", name_, ec.value());
             if (boost::asio::error::operation_aborted == ec.value())
                 return; // tcp server close and async op is canceled
             else
-                //WRITELOG(LL_ERROR, "server accept error: %d", error.value());
                 break;
         }
 
         connections_.insert(conn);
 
         conn->init();
-        LOGGER.write_log(LL_Info, "TcpServer[{}] accept connection [{}] from {}:{}", 
-                        name_, conn->name(), conn->remote_ip(), conn->remote_port());
-        
+
+        LOGGER.write_log(LL_Info, "TcpServer[{}] accept connection [{}] from {}:{:d}", 
+                    name_, conn->name(), conn->remote_ip(), conn->remote_port());
+
         EventLoop* ioloop = conn->get_loop();
-        ioloop->post(std::bind(&TcpConnection::handle_establish, conn));
+        ioloop->dispatch(std::bind(&TcpConnection::handle_establish, conn));
     } while (false);
 
     accept_loop();
@@ -141,50 +154,15 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
 //void TcpServer::handle_accept(const boost::system::error_code& ec, 
 //                                boost::asio::ip::tcp::socket peer)
 //{
-//    do {
-//        if (ec)
-//        {
-//            std::cout << "accept operation aborted" << std::endl;
-
-//            if (boost::asio::error::operation_aborted == ec.value())
-//                return; // tcp server close
-//            else
-//                //WRITELOG(LL_ERROR, "server accept error: %d", error.value());
-//                break;
-//        }
-
-//        std::cout << "accept connection." << std::endl;
-//        auto conn = std::make_shared<TcpConnection>(_test_loop);
-//        conn->assign(peer);
-//        conn->set_connection_callback(connection_callback_);
-//        conn->set_recv_callback(recv_callback_);
-//        conn->set_sendcomplete_callback(sendcomplete_callback_);
-//        conn->set_close_callback(std::bind(&TcpServer::remove_conn, this, 
-//                                    std::placeholders::_1));
-
-//        connections_.insert(conn);
-
-//        std::cout << "handle_accept, thread id " << std::this_thread::get_id() << std::endl;
-//        EventLoop* ioloop = conn->get_loop();
-//        if (ioloop != loop_)
-//            std::cout << "loop accept diff " << ioloop << "-" << loop_ << std::endl;
-//        else
-//            std::cout << "loop accept same" << std::endl;
-//        if (conn->get_socket().get_executor() == acceptor_.get_executor())
-//            std::cout << "io context same " << std::endl;
-//        else
-//            std::cout << "io context diff " << std::endl;
-
-//        ioloop->post(std::bind(&TcpConnection::handle_establish, conn));
-//    } while (false);
-
-//    async_accept();
+//    EventLoop* ioloop = pool_.get_nextloop();
+//    auto conn = std::make_shared<TcpConnection>(ioloop);
+//    conn->assign(peer);
 //}
 
 // this function is called in conn's loop for conn's close_callback
 void TcpServer::remove_conn(const TcpConnectionPtr& conn)
 {
-    loop_->post(std::bind(&TcpServer::remove_conn_loop, this, conn));
+    loop_->dispatch(std::bind(&TcpServer::remove_conn_loop, this, conn));
 }
 
 // this function is called in server's loop

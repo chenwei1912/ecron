@@ -33,26 +33,23 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
+    void loop();
+    void stop();
+
     // task queue it and wait for io_context's execution.
     void post(std::function<void()> f);
     // dispatch will call it rightaway if the dispatch-caller 
     // was called from io_context itself(in the same loop thread), 
     // but queue it otherwise.
     void dispatch(std::function<void()> f);
-    void stop();
 
     TimerId add_timer(size_t interval, TimerCallback task, bool repeat = false);
     void del_timer(TimerId tid);
 
-    bool in_loopthread();
-    void loop();
-
-    inline boost::asio::io_context& get_context()
-    {
-        return io_context_;
-    }
+    inline boost::asio::io_context& get_context() { return io_context_; }
 
 private:
+    void stop_loop();
 
     boost::asio::io_context io_context_;
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> guard_;
