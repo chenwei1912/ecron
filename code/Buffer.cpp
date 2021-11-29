@@ -22,6 +22,13 @@ const size_t Buffer::InitialSize = 1024;
 //{
 //}
 
+void Buffer::swap(Buffer& rhs)
+{
+    buff_.swap(rhs.buff_);
+    std::swap(read_index_, rhs.read_index_);
+    std::swap(write_index_, rhs.write_index_);
+}
+
 void Buffer::write(const char* data, size_t n)
 {
     if (NULL == data || 0 == n)
