@@ -1,4 +1,5 @@
 # for no cmake
+#g++ -std=c++11 -Wall -Icode examples/echo.cpp code/EventLoop.cpp code/TcpServer.cpp code/TcpConnection.cpp code/Buffer.cpp code/EventLoopPool.cpp code/TcpClient.cpp code/Logger.cpp code/TimingWheel.cpp -o output/echo -lpthread
 
 DIR_SRC = code
 DIR_OBJ = build

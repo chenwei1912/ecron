@@ -30,6 +30,8 @@ public:
     // implicit dtor,copy-ctor,move-ctor
     // copy-assignment-operator,move-assignment-operator
 
+    void swap(Buffer& rhs);
+
     size_t readable_bytes() const { return write_index_ - read_index_; }
     size_t writable_bytes() const { return buff_.size() - write_index_; }
 

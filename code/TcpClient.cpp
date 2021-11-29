@@ -83,6 +83,7 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
 //        LOGGER.write_log(LL_Debug, "TcpClient socket is opened");
 
     if (ec) {
+        // 110	 boost::asio::error::timed_out
         LOGGER.write_log(LL_Error, "TcpClient[{}] connect error : {}", name_, ec.value());
 
         conn_.reset();
