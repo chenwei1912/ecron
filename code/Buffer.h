@@ -8,6 +8,7 @@
 
 
 #include <vector>
+#include <string>
 
 
 
@@ -40,9 +41,12 @@ public:
 
     //void read();
     void write(const char* data, size_t n);
+    void write(const std::string& str);
 
     void has_written(size_t n);
     void has_readed(size_t n);
+
+    void ensure_writable(size_t n);
 
 
 private:

@@ -34,12 +34,16 @@ void Buffer::write(const char* data, size_t n)
     if (NULL == data || 0 == n)
         return;
 
-    if (n > writable_bytes())
-        make_space(n);
+    ensure_writable(n);
 
     //memcpy(begin_write(), data, n);
     std::copy(data, data + n, begin_write());
     has_written(n);
+}
+
+void Buffer::write(const std::string& str)
+{
+    write(str.data(), str.size());
 }
 
 void Buffer::has_written(size_t n)
@@ -73,5 +77,11 @@ void Buffer::make_space(size_t n)
         read_index_ = 0;
         write_index_ = count;
     }
+}
+
+void Buffer::ensure_writable(size_t n)
+{
+    if (n > writable_bytes())
+        make_space(n);
 }
 
