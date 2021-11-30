@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(netlib LANGUAGES CXX)
+project(netlib)
 
-set(CMAKE_VERBOSE_MAKEFILEON ON)
+#set(CMAKE_VERBOSE_MAKEFILEON ON)
 
 #FILE(GLOB SOURCE_1 "${CMAKE_SOURCE_DIR}/code/*.cpp") 
 #FILE(GLOB SOURCE_2 "${CMAKE_SOURCE_DIR}/examples/*.cpp")
  
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
-message(STATUS "cxx flags ${CMAKE_CXX_FLAGS}")
+#message(STATUS "cxx flags ${CMAKE_CXX_FLAGS}")
 
 #SET(CMAKE_BUILD_TYPE "Release")
 #message(STATUS "cxx flags ${CMAKE_CXX_FLAGS}")

@@ -77,6 +77,14 @@ void TcpConnection::send(const char* data, size_t n)
     loop_->dispatch(std::bind(&TcpConnection::send_loop, shared_from_this(), buff_ptr));
 }
 
+void TcpConnection::send(BufferPtr buffer)
+{
+    if (!buffer || 0 == buffer->readable_bytes())
+        return;
+
+    loop_->dispatch(std::bind(&TcpConnection::send_loop, shared_from_this(), buffer));
+}
+
 void TcpConnection::send_loop(BufferPtr b)
 {
     if (connected_) {
@@ -90,6 +98,9 @@ void TcpConnection::send_loop(BufferPtr b)
 void TcpConnection::async_recv()
 {
     // start async receive
+    if (0 == recv_buffer_.writable_bytes())
+        recv_buffer_.ensure_writable(Buffer::InitialSize);
+
     socket_.async_receive(boost::asio::buffer(recv_buffer_.begin_write(), recv_buffer_.writable_bytes()), 
                 std::bind(&TcpConnection::handle_recv, shared_from_this(), 
                 std::placeholders::_1, std::placeholders::_2));
