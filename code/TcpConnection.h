@@ -13,6 +13,7 @@
 #include <deque>
 
 #include <boost/asio.hpp>
+#include <boost/any.hpp>
 
 
 
@@ -58,6 +59,9 @@ public:
     std::string remote_ip() const;
     uint16_t remote_port() const;
 
+    void set_context(const boost::any& context) { context_ = context; }
+    const boost::any& get_context() const { return context_; }
+
     inline void set_connection_callback(const ConnectionCallback& cb)
     {
         connection_callback_ = cb;
@@ -102,6 +106,8 @@ private:
 	RecvCallback recv_callback_;
 	SendCompleteCallback sendcomplete_callback_;
 	CloseCallback close_callback_;
+
+	boost::any context_;
 };
 
 

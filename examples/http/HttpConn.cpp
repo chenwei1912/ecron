@@ -1,4 +1,5 @@
 #include "HttpConn.h"
+#include "Logger.h"
 
 #include <stdio.h>
 #include <cstring>
@@ -97,6 +98,7 @@ int HttpConn::init()
 
     request_.http_method.clear();
     request_.http_url.clear();
+    request_.keep_alive = 0;
     request_.http_headers.clear();
     request_.http_header_field.clear();
     request_.http_body.clear();
@@ -104,91 +106,88 @@ int HttpConn::init()
     count_parsed_ = 0;
     headercomplete_ = false;
     msgcomplete_ = false;
+    post_.clear();
     return 0;
 }
 
-int HttpConn::parse(const char* pdata, uint32_t len)
+bool HttpConn::process(netlib::Buffer* buffer)
 {
     size_t nparsed = 0;
-    nparsed = http_parser_execute(&parser_, &settings_, pdata, len);
-    if (HPE_OK != HTTP_PARSER_ERRNO(&parser_))
-        return -1;
-    //if (0 == nparsed)
-    //    return -1;
+    nparsed = http_parser_execute(&parser_, &settings_, buffer->begin_read(), 
+                                    buffer->readable_bytes());
+    if (HPE_OK != HTTP_PARSER_ERRNO(&parser_)) {
+        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer parse error");
 
-    count_parsed_ += nparsed;
-    return nparsed;
-
-    /*int p = 0;
-    for (; p <= length - 4; ++p)
+        http_code_ = 400;
+    }
+    else
     {
-        if ('\r' == data[p] && '\r' == data[p + 1] && '\r' == data[p + 2] && '\r' == data[p + 3])
-        {
-            // fourth param set 0 is receive data until eof
-            nparsed = http_parser_execute(&m_parser, &m_settings, pdata, len);
-            if (nparsed < 0)
-                return -1;
+        buffer->has_readed(nparsed);
+        count_parsed_ += nparsed;
+        if (msgcomplete_) {
+            netlib::LOGGER.write_log(netlib::LL_Info, "request parse OK! method: {}, url: {}", 
+                                        request_.http_method, request_.http_url);
+            http_code_ = 200;
+            http_path_ = request_.http_url;
+        } else {
+            netlib::LOGGER.write_log(netlib::LL_Trace, "request parsed {}, need more data", 
+                                        count_parsed_);
+            return false;
         }
-    }*/
-}
-
-bool HttpConn::do_request()
-{
-    //strncmp(request_.http_url.c_str(), "/", 1)
-    if (request_.http_url == "/")
-        printf("\nprocess method: %s, url: %s\n", request_.http_method.c_str(), 
-                request_.http_url.c_str());
+    }
 
     return true;
 }
 
-void HttpConn::resp_make(netlib::Buffer* buffer)
+//void HttpConn::make_response2(netlib::Buffer* buffer)
+//{
+//    buffer->write("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-type: text/html\r\n");
+//    const char* temp = "<html><body><h1>12345</h1></body></html>";
+//    size_t len = strlen(temp);
+//    buffer->write("Content-length: " + std::to_string(len) + "\r\n\r\n");
+//    buffer->write(temp, len);
+//}
+
+void HttpConn::make_response(netlib::Buffer* buffer)
 {
     // init response
     //UnmapFile();
-    
-    http_code_ = 200;
-    http_path_.clear();
-    if (request_.http_url == "/")
-        request_.http_url += "index";
 
-    std::string mydir = "/home/shared/project/netlib/resources";
-    printf("http_url : %s\n", request_.http_url.data());
+//    if (request_.http_url == "/")
+//        request_.http_url += "index";
 
-    do {
-        // check parse
-        if (HPE_OK != HTTP_PARSER_ERRNO(&parser_)) { // parse error
-            printf("parse error\n");
-            http_code_ = 400;
-            break;
-        }
+    std::string mydir = "/home/shared/project/netlib/output/resources";
+    //printf("http_url : %s\n", request_.http_url.data());
+
+    if (200 == http_code_)
+    {
+        if (http_path_ == "/")
+            http_path_ += "index";
 
         // check route
-        auto it = _Route.find(request_.http_url);
+        auto it = _Route.find(http_path_);
         if (it != _Route.end()) {
-            printf("route find\n");
-            http_path_ = request_.http_url + ".html";
-        }
-        else
-        {
-            printf("route not find\n");
-            http_path_ = request_.http_url;
+            //printf("route find\n");
+            http_path_ += ".html";
         }
 
         // check file exists
+        // replace by c++17 filesystem
         FILE* pFile = fopen((mydir + http_path_).data(), "rb");
         if (NULL == pFile)
-        {
             http_code_ = 404;
-            break;
-        }
-        fclose(pFile);
-
+        else
+            fclose(pFile);
 
         // 403 file access deny
-    } while (false);
+    }
+//    do {
 
-    printf("resource file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
+//    } while (false);
+
+    //printf("resource file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
+    netlib::LOGGER.write_log(netlib::LL_Info, "response info - code: {}, path: {}", 
+                                http_code_, http_path_);
 
     // error html
     auto it = _ErrorCodePath.find(http_code_);
@@ -197,7 +196,7 @@ void HttpConn::resp_make(netlib::Buffer* buffer)
         //stat((srcDir_ + path_).data(), &mmFileStat_);
     }
 
-    printf("after error file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
+    //printf("after error file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
 
     // add status line
     std::string status;
@@ -208,52 +207,24 @@ void HttpConn::resp_make(netlib::Buffer* buffer)
     else {
         http_code_ = 400;
         status = _CodeStatus.find(400)->second;
+        // log
     }
     buffer->write("HTTP/1.1 " + std::to_string(http_code_) + " " + status + "\r\n");
 
     // add header
-    buffer->write("Connection: keep-alive\r\n");
+    buffer->write("Connection: ");
+    if ((200 == http_code_) && (0 != request_.keep_alive))
+        buffer->write("keep-alive\r\n");
+    else
+        buffer->write("close\r\n");
+
     buffer->write("Content-type: " + GetFileType() + "\r\n");
 
     // add content
-
-//    std::string content; // read file: http_path_
-//    if (200 == http_code_)
-//        content = "<html><body><h1>HelloWrold</h1></body></html>";
-//    else if (400 == http_code_)
-//        content = "<html><body><h1>400 Bad Request</h1></body></html>";
-//    else if (403 == http_code_)
-//        content = "<html><body><h1>403 Forbidden</h1></body></html>";
-//    else if (404 == http_code_)
-//        content = "<html><body><h1>404 Not Found</h1></body></html>";
-
-//    buffer->write("Content-length: " + std::to_string(content.size()) + "\r\n\r\n");
-//    buffer->write(content);
-
-    //std::string temp = "/home/shared/project/netlib/resources";
-    //temp += http_path_;
-    
-//    printf("file open : %s\n", (mydir + http_path_).data());
-//    int srcFd = open((mydir + http_path_).data(), O_RDONLY);
-//    if (srcFd < 0) {
-//        //ErrorContent(buff, "File NotFound!");
-//        printf("file not found\n");
-//        return;
-//    }
-
-//    int* mmRet = (int*)mmap(0, mmFileStat_.st_size, PROT_READ, MAP_PRIVATE, srcFd, 0);
-//    if(*mmRet == -1) {
-//        printf("file not found\n");
-//        return; 
-//    }
-//    mmFile_ = (char*)mmRet;
-//    close(srcFd);
-
-    printf("file open : %s\n", (mydir + http_path_).data());
     FILE* pFile = fopen((mydir + http_path_).data(), "rb");
     if (NULL == pFile)
     {
-        printf("open file error\n");
+        //printf("open file error\n");
         return;
     }
 
@@ -271,7 +242,7 @@ void HttpConn::resp_make(netlib::Buffer* buffer)
         readbytes = fread(buffer->begin_write(), 1, 512, pFile);
         if (0 == readbytes)
             break;
-        printf("file read bytes: %d\n", readbytes);
+        //printf("file read bytes: %d\n", readbytes);
         buffer->has_written(readbytes);
     }
     fclose(pFile);
@@ -289,9 +260,32 @@ std::string HttpConn::GetFileType() {
     return "text/plain";
 }
 
+void HttpConn::parse_post()
+{
+//    if(request_.http_method == "POST" 
+//        && request_.http_headers["Content-Type"] == "application/x-www-form-urlencoded")
+//    {
+//        ParseFromUrlencoded_();
+
+//        if(DEFAULT_HTML_TAG.count(path_)) {
+//            int tag = DEFAULT_HTML_TAG.find(path_)->second;
+//            LOG_DEBUG("Tag:%d", tag);
+//            if(tag == 0 || tag == 1) {
+//                bool isLogin = (tag == 1);
+//                if(UserVerify(post_["username"], post_["password"], isLogin)) {
+//                    path_ = "/welcome.html";
+//                } 
+//                else {
+//                    path_ = "/error.html";
+//                }
+//            }
+//        }
+//    }
+}
+
 int HttpConn::on_message_begin(http_parser* parser)
 {
-    printf("\n***MESSAGE BEGIN***\n\n");
+    //printf("\n***MESSAGE BEGIN***\n\n");
     return 0;
 }
 
@@ -328,7 +322,7 @@ int HttpConn::on_url(http_parser* parser, const char* at, size_t length)
 //            wrapper->url_.userinfo.assign(at + u.field_data[UF_USERINFO].off, u.field_data[UF_USERINFO].len);
 //    }
 
-    printf("Url: %.*s\n", (int)length, at);
+    //printf("Url: %.*s\n", (int)length, at);
 
     return 0;
 }
@@ -361,9 +355,10 @@ int HttpConn::on_headers_complete(http_parser* parser)
 {
     HttpConn* wrapper = (HttpConn*)parser->data;
     wrapper->request_.http_method = http_method_str((http_method)parser->method);
+    wrapper->request_.keep_alive = http_should_keep_alive(parser);
     wrapper->headercomplete_ = true;
 
-    printf("\n***HEADERS COMPLETE***\n\n");
+    //printf("\n***HEADERS COMPLETE***\n\n");
     return 0;
 }
 
@@ -374,7 +369,8 @@ int HttpConn::on_body(http_parser* parser, const char* at, size_t length)
     HttpConn* wrapper = (HttpConn*)parser->data;
     wrapper->request_.http_body.append(at, length);
 
-    printf("Body: %.*s\n", (int)length, at);
+    //printf("Body: %.*s\n", (int)length, at);
+    wrapper->parse_post();
     return 0;
 }
 
@@ -383,7 +379,7 @@ int HttpConn::on_message_complete(http_parser* parser)
     HttpConn* wrapper = (HttpConn*)parser->data;
     wrapper->msgcomplete_ = true;
 
-    printf("\n***MESSAGE COMPLETE***\n\n");
+    //printf("\n***MESSAGE COMPLETE***\n\n");
     return 0;
 }
 

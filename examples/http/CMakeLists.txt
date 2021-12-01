@@ -7,4 +7,4 @@
 
 add_executable(http HttpMain.cpp HttpServer.cpp HttpConn.cpp http_parser.c)
 
-target_link_libraries(http pthread)
+target_link_libraries(http netlib pthread)

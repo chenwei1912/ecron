@@ -4,15 +4,15 @@
 #include "http_parser.h"
 #include "Buffer.h"
 
-#include <map>
+#include <unordered_map>
 #include <memory>
 
-#include <unistd.h>      // close
-#include <sys/stat.h>    // stat
-#include <sys/mman.h>    // mmap, munmap
+//#include <unistd.h>      // close
+//#include <sys/stat.h>    // stat
+//#include <sys/mman.h>    // mmap, munmap
 
 
-typedef std::map<std::string, std::string> header_t;
+typedef std::unordered_map<std::string, std::string> header_t;
 //typedef header_t::iterator header_iter_t;
 
 struct HttpUrl
@@ -30,6 +30,7 @@ struct HttpRequest
 {
     std::string http_method;
     std::string http_url;
+    int keep_alive;
     //std::string http_version;
     //HttpUrl url;
 
@@ -63,18 +64,22 @@ public:
     ~HttpConn();
 
     int init();
-    int parse(const char* pdata, uint32_t len);
+    //int parse(const char* pdata, uint32_t len);
 
-    bool do_request();
+    bool process(netlib::Buffer* buffer);
 
     //void resp_init();
-    void resp_make(netlib::Buffer* buffer);
+    void make_response(netlib::Buffer* buffer);
+    //void make_response2(netlib::Buffer* buffer);
     std::string GetFileType();
+
+    void parse_post();
 
     HttpRequest request_;
     HttpUrl url_;
 
     //HttpResponse response_;
+    // packed response
     int http_code_;
     std::string http_path_;
 
@@ -84,6 +89,8 @@ public:
     uint32_t count_parsed_;
     bool headercomplete_;
     bool msgcomplete_;
+
+    std::unordered_map<std::string, std::string> post_;
     
 
 private:
