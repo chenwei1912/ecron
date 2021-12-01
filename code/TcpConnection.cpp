@@ -35,6 +35,7 @@ void TcpConnection::init()
     boost::asio::ip::tcp::no_delay delayOption(true);
     socket_.set_option(delayOption);
 
+    // avoid timewait state
     boost::asio::socket_base::linger lingerOption(true, 0);
     socket_.set_option(lingerOption);
 
