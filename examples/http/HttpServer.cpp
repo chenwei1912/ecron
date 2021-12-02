@@ -51,12 +51,14 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     if (complete)
     {
         netlib::BufferPtr buff_ptr = std::make_shared<netlib::Buffer>();
-        http_conn->make_response(buff_ptr.get());
+        HttpResponse resp;
+        resp.init();
+        http_conn->do_request(buff_ptr.get(), &resp);
 
         // send response
         conn->send(buff_ptr);
 
-        if (0 == http_conn->request_.keep_alive)
+        if (0 == resp.get_keepalive())
             conn->close();
 
         http_conn->init();
