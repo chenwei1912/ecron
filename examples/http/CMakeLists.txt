@@ -5,6 +5,6 @@
 #link_directories( ${PROJECT_SOURCE_DIR}/output)
 #link_libraries(libnetlib.a)
 
-add_executable(http HttpMain.cpp HttpServer.cpp HttpConn.cpp HttpRequest.cpp HttpResponse.cpp http_parser.c)
+add_executable(http HttpMain.cpp HttpServer.cpp HttpConn.cpp HttpRequest.cpp HttpResponse.cpp SqlConnPool.cpp http_parser.c)
 
-target_link_libraries(http netlib pthread)
+target_link_libraries(http netlib pthread mysqlclient)

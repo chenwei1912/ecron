@@ -1,5 +1,8 @@
 #include "HttpServer.h"
+#include "HttpConn.h"
 #include "Logger.h"
+#include "SqlConnPool.h"
+
 
 //#include <iostream>
 
@@ -18,21 +21,47 @@ HttpServer::HttpServer(netlib::EventLoop* loop)
 
 HttpServer::~HttpServer()
 {
-    connections_.clear();
+    workers_.stop();
 }
 
-void HttpServer::start(const char* strip, unsigned short port)
+bool HttpServer::start(const char* strip, unsigned short port)
 {
+    bool ret = true;
+
+    // database
+    SqlConnPool* pool = SqlConnPool::Instance();
+    ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 2);
+    if (!ret) {
+        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start database failed!");
+        return false;
+    }
+
+    // workers
+    ret = workers_.start(2, 100000);
+    if (!ret) {
+        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start worker threads failed!");
+        return false;
+    }
+
+    // network
     server_.set_io_threads(2);
-    server_.start(strip, port);
+    ret = server_.start(strip, port);
+    if (!ret) {
+        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start listen failed!");
+        return false;
+    }
+
+    return ret;
 }
 
 void HttpServer::on_connection(const netlib::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         HttpConnPtr http_conn = std::make_shared<HttpConn>();
-        http_conn->init();
+        http_conn->init(conn);
         conn->set_context(http_conn);
+
+        // security: complete messge timeout
     }
     else {
 
@@ -44,24 +73,15 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     netlib::LOGGER.write_log(netlib::LL_Info, "{}", buffer->begin_read());
 
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    bool complete = http_conn->process(buffer);
-
-    // messge timeout process
-
+    bool complete = http_conn->parse(buffer);
     if (complete)
     {
-        netlib::BufferPtr buff_ptr = std::make_shared<netlib::Buffer>();
-        HttpResponse resp;
-        resp.init();
-        http_conn->do_request(buff_ptr.get(), &resp);
+        workers_.append(std::bind(&HttpConn::process, http_conn));
 
-        // send response
-        conn->send(buff_ptr);
-
-        if (0 == resp.get_keepalive())
-            conn->close();
-
-        http_conn->init();
+        // start a new HttpConn
+        HttpConnPtr http_new = std::make_shared<HttpConn>();
+        http_new->init(conn);
+        conn->set_context(http_new);
     }
 }
 

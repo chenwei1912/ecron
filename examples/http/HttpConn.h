@@ -4,6 +4,7 @@
 //#include "http_parser.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
+#include "TcpConnection.h"
 #include "Buffer.h"
 
 //#include <unordered_map>
@@ -61,51 +62,24 @@ public:
     HttpConn();
     ~HttpConn();
 
-    int init();
+    int init(const netlib::TcpConnectionPtr& conn);
+
+    bool parse(netlib::Buffer* buffer);
     //int parse(const char* pdata, uint32_t len);
+    void process();
 
-    bool process(netlib::Buffer* buffer);
-    void do_request(netlib::Buffer* buffer, HttpResponse* resp);
-
-//    void make_response(netlib::Buffer* buffer);
-//    //void make_response2(netlib::Buffer* buffer);
-//    std::string GetFileType();
-
-    void parse_post();
-
-//    HttpRequest request_;
-//    HttpUrl url_;
-
-//    //HttpResponse response_;
-//    // packed response
     int http_code_;
     std::string http_path_;
-
-//    //char* mmFile_; 
-//    //struct stat mmFileStat_;
-
-//    uint32_t count_parsed_;
-//    bool headercomplete_;
-//    bool msgcomplete_;
-
-//    std::unordered_map<std::string, std::string> post_;
     
 
 private:
-//    static int on_message_begin(http_parser* parser);
-//    static int on_url(http_parser* parser, const char* at, size_t length);
-//    static int on_status(http_parser* parser, const char* at, size_t length);
-//    static int on_header_field(http_parser* parser, const char* at, size_t length);
-//    static int on_header_value(http_parser* parser, const char* at, size_t length);
-//    static int on_headers_complete(http_parser* parser);
-//    static int on_body(http_parser* parser, const char* at, size_t length);
-//    static int on_message_complete(http_parser* parser);
-//    static int on_chunk_header(http_parser* parser);
-//    static int on_chunk_complete(http_parser* parser);
-
-//    http_parser_settings settings_;
-//    http_parser parser_;
+    void do_request(netlib::Buffer* buffer, HttpResponse* resp);
+    void do_post();
+    void parse_post();
+    bool user_verify(const std::string& name, const std::string& pwd, int login);
+    
     HttpRequest request_;
+    std::weak_ptr<netlib::TcpConnection> conn_weak_;
 };
 
 typedef std::shared_ptr<HttpConn> HttpConnPtr;

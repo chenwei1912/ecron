@@ -1,9 +1,10 @@
 #include "HttpConn.h"
 #include "Logger.h"
+#include "SqlConnPool.h"
 
 #include <stdio.h>
 #include <cstring>
-#include <climits>
+//#include <climits>
 
 #include <unordered_set>
 #include <unordered_map>
@@ -49,7 +50,8 @@ static const std::unordered_set<std::string> _Route = {
 "/login",
 "/register",
 "/picture",
-"/video"
+"/video",
+"/fans"
 };
 
 
@@ -78,17 +80,18 @@ HttpConn::~HttpConn()
     //UnmapFile();
 }
 
-int HttpConn::init()
+int HttpConn::init(const netlib::TcpConnectionPtr& conn)
 {
     request_.init();
     http_code_ = 200;
     http_path_.clear();
+
+    conn_weak_ = conn;
     return 0;
 }
 
-bool HttpConn::process(netlib::Buffer* buffer)
+bool HttpConn::parse(netlib::Buffer* buffer)
 {
-    size_t nparsed = 0;
     bool ret = request_.parse(buffer->begin_read(), buffer->readable_bytes());
     if (!ret) {
         netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer parse error");
@@ -110,28 +113,26 @@ bool HttpConn::process(netlib::Buffer* buffer)
     }
 
     return true;
-//    nparsed = http_parser_execute(&parser_, &settings_, buffer->begin_read(), 
-//                                    buffer->readable_bytes());
-//    if (HPE_OK != HTTP_PARSER_ERRNO(&parser_)) {
-//        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer parse error");
+}
 
-//        http_code_ = 400;
-//    }
-//    else
-//    {
-//        buffer->has_readed(nparsed);
-//        count_parsed_ += nparsed;
-//        if (msgcomplete_) {
-//            netlib::LOGGER.write_log(netlib::LL_Info, "request parse OK! method: {}, url: {}", 
-//                                        request_.http_method, request_.http_url);
-//            http_code_ = 200;
-//            http_path_ = request_.http_url;
-//        } else {
-//            netlib::LOGGER.write_log(netlib::LL_Trace, "request parsed {}, need more data", 
-//                                        count_parsed_);
-//            return false;
-//        }
-//    }
+void HttpConn::process()
+{
+    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    if (conn)
+    {
+        netlib::BufferPtr send_buffer = std::make_shared<netlib::Buffer>();
+        HttpResponse resp;
+        resp.init();
+        do_request(send_buffer.get(), &resp);
+
+        // send response
+        conn->send(send_buffer);
+
+        if (0 == resp.get_keepalive())
+            conn->close();
+
+        //http_conn->init();
+    }
 }
 
 //void HttpConn::make_response2(netlib::Buffer* buffer)
@@ -151,10 +152,11 @@ void HttpConn::do_request(netlib::Buffer* buffer, HttpResponse* resp)
 //    if (request_.http_url == "/")
 //        request_.http_url += "index";
 
-    std::string mydir = "/home/shared/project/netlib/output/resources";
+    // fixme: get current dir
+    std::string mydir = "/home/shared/project/netlib/examples/http/resources";
     //printf("http_url : %s\n", request_.http_url.data());
 
-    if (200 == http_code_)
+    if (200 == http_code_) // parse success
     {
         if (http_path_ == "/")
             http_path_ += "index";
@@ -165,6 +167,11 @@ void HttpConn::do_request(netlib::Buffer* buffer, HttpResponse* resp)
             //printf("route find\n");
             http_path_ += ".html";
         }
+
+        std::string::size_type n;
+        n = request_.http_url_.find("cgi");
+        if (n != std::string::npos && request_.http_method_ == "POST")
+            do_post();
 
         // check file exists
         // replace by c++17 filesystem
@@ -192,94 +199,119 @@ void HttpConn::do_request(netlib::Buffer* buffer, HttpResponse* resp)
     netlib::LOGGER.write_log(netlib::LL_Info, "response info - code: {}, path: {}", 
                                 http_code_, mydir);
     resp->set_code(http_code_);
-    resp->set_keepalive(request_.keep_alive_);
+    bool bval = (http_code_ == 400) ? false : request_.keep_alive_;
+    resp->set_keepalive(bval);
     resp->make_response(buffer, mydir);
-
-    //printf("after error file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
-
-    // add status line
-
-//    std::string status;
-//    auto it_status = _CodeStatus.find(http_code_);
-//    if (it_status != _CodeStatus.end()) {
-//        status = it_status->second;
-//    }
-//    else {
-//        http_code_ = 400;
-//        status = _CodeStatus.find(400)->second;
-//        // log
-//    }
-//    buffer->write("HTTP/1.1 " + std::to_string(http_code_) + " " + status + "\r\n");
-
-//    // add header
-//    buffer->write("Connection: ");
-//    if ((200 == http_code_) && (0 != request_.keep_alive))
-//        buffer->write("keep-alive\r\n");
-//    else
-//        buffer->write("close\r\n");
-
-//    buffer->write("Content-type: " + GetFileType() + "\r\n");
-
-//    // add content
-//    FILE* pFile = fopen((mydir + http_path_).data(), "rb");
-//    if (NULL == pFile)
-//    {
-//        //printf("open file error\n");
-//        return;
-//    }
-
-//    fseek(pFile, 0, SEEK_END);
-//    uint32_t FileSize = ftell(pFile);
-//    fseek(pFile, 0, SEEK_SET);
-
-//    buffer->write("Content-length: " + std::to_string(FileSize) + "\r\n\r\n");
-
-//    // if size is very large, multi send?
-//    // partition to send header and body
-//    uint32_t readbytes = 0;
-//    while (true) {
-//        buffer->ensure_writable(512);
-//        readbytes = fread(buffer->begin_write(), 1, 512, pFile);
-//        if (0 == readbytes)
-//            break;
-//        //printf("file read bytes: %d\n", readbytes);
-//        buffer->has_written(readbytes);
-//    }
-//    fclose(pFile);
 }
 
-//std::string HttpConn::GetFileType() {
-//    std::string::size_type idx = http_path_.find_last_of('.');
-//    if(idx == std::string::npos) {
-//        return "text/plain";
-//    }
-//    std::string suffix = http_path_.substr(idx);
-//    auto it = _SuffixType.find(suffix);
-//    if (it != _SuffixType.end())
-//        return it->second;
-//    return "text/plain";
-//}
-
-void HttpConn::parse_post()
+void HttpConn::do_post()
 {
-//    if(request_.http_method == "POST" 
-//        && request_.http_headers["Content-Type"] == "application/x-www-form-urlencoded")
-//    {
-//        ParseFromUrlencoded_();
+    if (request_.post_.empty())
+    {
+        http_code_ = 400;
+        return;
+    }
 
-//        if(DEFAULT_HTML_TAG.count(path_)) {
-//            int tag = DEFAULT_HTML_TAG.find(path_)->second;
-//            LOG_DEBUG("Tag:%d", tag);
-//            if(tag == 0 || tag == 1) {
-//                bool isLogin = (tag == 1);
-//                if(UserVerify(post_["username"], post_["password"], isLogin)) {
-//                    path_ = "/welcome.html";
-//                } 
-//                else {
-//                    path_ = "/error.html";
-//                }
-//            }
-//        }
-//    }
+    std::string user = request_.post_["user"];
+    std::string pwd = request_.post_["password"];
+    bool ret = false;
+    if (request_.http_url_ == "/login_cgi")
+    {
+        ret = user_verify(user, pwd, 1);
+        if (ret)
+            http_path_ = "/welcome.html";
+        else
+            http_path_ = "/login_error.html";
+    }
+    else if (request_.http_url_ == "/register_cgi")
+    {
+        ret = user_verify(user, pwd, 0);
+        if (ret)
+            http_path_ = "/login.html";
+        else
+            http_path_ = "/register_error.html";
+    }
+    else
+    {
+        http_code_ = 400; // not process other cgi post
+        return;
+    }
+    
+}
+
+bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int login)
+{
+//    if (name == "" || pwd == "")
+//        return false;
+
+    //LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
+
+    netlib::LOGGER.write_log(netlib::LL_Info, "verify user - name: {}, password: {}", 
+                                name, pwd);
+
+    SqlHandler_t sql;
+    SqlConnRAII(&sql, SqlConnPool::Instance());
+    if (nullptr == sql)
+    {
+        netlib::LOGGER.write_log(netlib::LL_Critical, "database connection error");
+        return false;
+    }
+    
+    //bool flag = false;
+    //uint32_t num_cols = 0;
+    //char order[256] = { 0 };
+    std::string query_string;
+    //MYSQL_FIELD* fields = nullptr;
+    MYSQL_RES* res = nullptr;
+    
+    //if(!isLogin) { flag = true; }
+
+    query_string = fmt::format("SELECT username, password FROM user WHERE username='{}' LIMIT 1", name);
+    if (mysql_query(sql, query_string.c_str())) {
+        netlib::LOGGER.write_log(netlib::LL_Error, "SELECT query error: {}", query_string);
+        return false;
+    }
+
+    bool flag = false;
+    res = mysql_store_result(sql);
+    if (0 == mysql_num_rows(res))
+    {
+        if (0 == login) // register
+        {
+            query_string = fmt::format("INSERT INTO user(username, password) VALUES('{}','{}')", name.c_str(), pwd.c_str());
+            if (mysql_query(sql, query_string.c_str())) {
+                netlib::LOGGER.write_log(netlib::LL_Error, "INSERT query error: {}", query_string);
+                flag = false;
+            }
+            else
+                flag = true;
+            netlib::LOGGER.write_log(netlib::LL_Trace, "register user info {}", flag);
+        }
+    }
+    else
+    {
+        //num_cols = mysql_num_fields(res);
+        //fields = mysql_fetch_fields(res);
+        if (0 != login) // login
+            while (MYSQL_ROW row = mysql_fetch_row(res))
+            {
+                netlib::LOGGER.write_log(netlib::LL_Trace, "MYSQL ROW: {} {}", row[0], row[1]);
+                std::string password(row[1]);
+                if (pwd == password)
+                {
+                    flag = true;
+                    netlib::LOGGER.write_log(netlib::LL_Trace, "password match");
+                    break;
+                }
+                netlib::LOGGER.write_log(netlib::LL_Trace, "password error");
+            }
+    }
+    mysql_free_result(res);
+
+    //SqlConnPool::Instance()->FreeConn(sql);
+    if (flag)
+        netlib::LOGGER.write_log(netlib::LL_Info, "verify user success!");
+    //LOG_DEBUG( "UserVerify success!!");
+    return flag;
 }
 
