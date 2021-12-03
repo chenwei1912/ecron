@@ -29,7 +29,7 @@ public:
 
     void init();
     bool parse(const char* pdata, uint32_t len);
-    bool parse_post();
+    bool parse_post(const char* at, size_t length);
 
     //const std::string& method() const { return parser_.http_method;}
 

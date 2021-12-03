@@ -5,6 +5,8 @@
 #include <cstring>
 //#include <climits>
 
+#include <regex>
+
 
 
 
@@ -109,11 +111,11 @@ static int on_body(http_parser* parser, const char* at, size_t length)
     // this callback function is probably called more than once
 
     HttpRequest* req = (HttpRequest*)parser->data;
-    req->http_body_.append(at, length);
+    //req->http_body_.append(at, length);
 
     //printf("Body: %.*s\n", (int)length, at);
 
-    //req->parse_post();
+    req->parse_post(at, length);
     return 0;
 }
 
@@ -195,15 +197,43 @@ bool HttpRequest::parse(const char* pdata, uint32_t len)
     return true;
 }
 
-bool HttpRequest::parse_post()
+bool HttpRequest::parse_post(const char* at, size_t length)
 {
-    if(http_method_ == "POST" 
+    if (http_method_ == "POST" 
         && http_headers_["Content-Type"] == "application/x-www-form-urlencoded")
     {
+        //std::regex pattern(".*=.*</.*>");
+        std::smatch results;
+
         // parse key1=value1&key2=value2&...
-        // regex?
+        std::string str_field;
+        //std::string str_value;
+
+        std::regex reg("&");
+        std::regex reg2("(\\w+)=(\\w+)");
+        std::cregex_token_iterator pos(at, at + length, reg, -1);
+        //std::sregex_token_iterator pos(str.begin(), str.end(), reg, -1);
+        auto end = std::cregex_token_iterator();
+        for (; pos != end; ++pos)
+        {
+            std::string temp = *pos;
+            //printf("split string: %s\n", temp.c_str());
+
+        	std::regex_match(temp, results, reg2);
+        	for (size_t i = 1; i < results.size(); ++i)
+        	{
+        	    //printf("match: %s\n", results.str(i).c_str());
+                if (str_field.empty())
+                    str_field = results.str(i);
+                else
+                {
+                    post_[str_field] = results.str(i);
+                    str_field.clear();
+                }
+        	}
+        }
+
     }
 
     return true;
 }
-

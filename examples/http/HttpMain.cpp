@@ -5,11 +5,6 @@
 #include "Logger.h"
 
 
-void idle_timeout()
-{
-    netlib::LOGGER.flush();
-}
-
 int main(int argc, char* argv[])
 {
     if (argc < 3) {
@@ -28,9 +23,13 @@ int main(int argc, char* argv[])
     HttpServer server(&loop);
 	
 	uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
-    server.start(argv[1], port);
+    ret = server.start(argv[1], port);
+    if (!ret) {
+        std::cout << "http server start failed." << std::endl;
+        return -2;
+    }
 
-    loop.add_timer(3, idle_timeout, true);
+    loop.add_timer(3, std::bind(&HttpServer::on_idle, &server), true);
 
     loop.loop();
 
