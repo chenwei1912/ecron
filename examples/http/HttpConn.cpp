@@ -241,30 +241,19 @@ void HttpConn::do_post()
 
 bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int login)
 {
-//    if (name == "" || pwd == "")
-//        return false;
-
-    //LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
-
-    netlib::LOGGER.write_log(netlib::LL_Info, "verify user - name: {}, password: {}", 
-                                name, pwd);
+    netlib::LOGGER.write_log(netlib::LL_Info, "verify user - name: {}, password: {}, login: {}", 
+                                name, pwd, login);
 
     SqlHandler_t sql;
     SqlConnRAII(&sql, SqlConnPool::Instance());
     if (nullptr == sql)
     {
-        netlib::LOGGER.write_log(netlib::LL_Critical, "database connection error");
+        netlib::LOGGER.write_log(netlib::LL_Error, "database connection error");
         return false;
     }
-    
-    //bool flag = false;
-    //uint32_t num_cols = 0;
-    //char order[256] = { 0 };
+
     std::string query_string;
-    //MYSQL_FIELD* fields = nullptr;
     MYSQL_RES* res = nullptr;
-    
-    //if(!isLogin) { flag = true; }
 
     query_string = fmt::format("SELECT username, password FROM user WHERE username='{}' LIMIT 1", name);
     if (mysql_query(sql, query_string.c_str())) {
@@ -279,13 +268,10 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
         if (0 == login) // register
         {
             query_string = fmt::format("INSERT INTO user(username, password) VALUES('{}','{}')", name.c_str(), pwd.c_str());
-            if (mysql_query(sql, query_string.c_str())) {
+            if (mysql_query(sql, query_string.c_str()))
                 netlib::LOGGER.write_log(netlib::LL_Error, "INSERT query error: {}", query_string);
-                flag = false;
-            }
             else
                 flag = true;
-            netlib::LOGGER.write_log(netlib::LL_Trace, "register user info {}", flag);
         }
     }
     else
@@ -295,23 +281,21 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
         if (0 != login) // login
             while (MYSQL_ROW row = mysql_fetch_row(res))
             {
-                netlib::LOGGER.write_log(netlib::LL_Trace, "MYSQL ROW: {} {}", row[0], row[1]);
+                //netlib::LOGGER.write_log(netlib::LL_Trace, "MYSQL ROW: {} {}", row[0], row[1]);
                 std::string password(row[1]);
                 if (pwd == password)
-                {
                     flag = true;
-                    netlib::LOGGER.write_log(netlib::LL_Trace, "password match");
-                    break;
-                }
-                netlib::LOGGER.write_log(netlib::LL_Trace, "password error");
+                else
+                    netlib::LOGGER.write_log(netlib::LL_Error, "password auth error");
             }
     }
     mysql_free_result(res);
 
-    //SqlConnPool::Instance()->FreeConn(sql);
     if (flag)
-        netlib::LOGGER.write_log(netlib::LL_Info, "verify user success!");
-    //LOG_DEBUG( "UserVerify success!!");
+        netlib::LOGGER.write_log(netlib::LL_Info, "verify user OK!");
+     else
+        netlib::LOGGER.write_log(netlib::LL_Info, "verify user failed!");
+    //SqlConnPool::Instance()->FreeConn(sql);
     return flag;
 }
 
