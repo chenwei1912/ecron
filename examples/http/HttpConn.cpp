@@ -55,20 +55,6 @@ static const std::unordered_set<std::string> _Route = {
 };
 
 
-//void dump_url(const char *url, const struct http_parser_url *u) {
-//    unsigned int i;
-//    printf("\tfield_set: 0x%x, port: %u\n", u->field_set, u->port);
-//    for (i = 0; i < UF_MAX; i++) {
-//        if ((u->field_set & (1 << i)) == 0) {
-//            printf("\tfield_data[%u]: unset\n", i);
-//            continue;
-//        }
-//        printf("\tfield_data[%u]: off: %u, len: %u, part: %.*s\n", i, u->field_data[i].off
-//                , u->field_data[i].len, u->field_data[i].len, url + u->field_data[i].off);
-//    }
-//}
-
-
 HttpConn::HttpConn()
 //        : headercomplete_(false)
 //        , msgcomplete_(false)
@@ -122,16 +108,13 @@ void HttpConn::process()
     {
         netlib::BufferPtr send_buffer = std::make_shared<netlib::Buffer>();
         HttpResponse resp;
-        resp.init();
-        do_request(send_buffer.get(), &resp);
-
-        // send response
+        process_header(send_buffer.get(), &resp);
         conn->send(send_buffer);
 
-        if (0 == resp.get_keepalive())
-            conn->close();
+        process_body(conn);
 
-        //http_conn->init();
+        if (!resp.get_keepalive())
+            conn->close();
     }
 }
 
@@ -144,68 +127,97 @@ void HttpConn::process()
 //    buffer->write(temp, len);
 //}
 
-void HttpConn::do_request(netlib::Buffer* buffer, HttpResponse* resp)
+void HttpConn::process_header(netlib::Buffer* buffer, HttpResponse* resp)
 {
-    // init response
-    //UnmapFile();
-
-//    if (request_.http_url == "/")
-//        request_.http_url += "index";
-
     // fixme: get current dir
     std::string mydir = "/home/shared/project/netlib/examples/http/resources";
     //printf("http_url : %s\n", request_.http_url.data());
+    uint32_t file_size = 0;
+
+    do_post();
 
     if (200 == http_code_) // parse success
     {
         if (http_path_ == "/")
             http_path_ += "index";
 
-        // check route
+        // add file type for GET method
         auto it = _Route.find(http_path_);
         if (it != _Route.end()) {
             //printf("route find\n");
             http_path_ += ".html";
         }
 
-        std::string::size_type n;
-        n = request_.http_url_.find("cgi");
-        if (n != std::string::npos && request_.http_method_ == "POST")
-            do_post();
-
-        // check file exists
-        // replace by c++17 filesystem
+        // check file exists(replace by c++17 filesystem)
         FILE* pFile = fopen((mydir + http_path_).data(), "rb");
         if (NULL == pFile)
             http_code_ = 404;
         else
+        {
+            fseek(pFile, 0, SEEK_END);
+            file_size = ftell(pFile);
+            fseek(pFile, 0, SEEK_SET);
+
+            // 403 file access deny
+            
             fclose(pFile);
-
-        // 403 file access deny
-    }
-//    do {
-
-//    } while (false);
-
-    // error html
-    auto it = _ErrorCodePath.find(http_code_);
-    if (it != _ErrorCodePath.end()) {
-        http_path_ = it->second;
-        //stat((srcDir_ + path_).data(), &mmFileStat_);
+        }
     }
 
-    mydir += http_path_;
-    //printf("resource file : %s, code : %d\n", (mydir + http_path_).data(), http_code_);
-    netlib::LOGGER.write_log(netlib::LL_Info, "response info - code: {}, path: {}", 
-                                http_code_, mydir);
-    resp->set_code(http_code_);
-    bool bval = (http_code_ == 400) ? false : request_.keep_alive_;
-    resp->set_keepalive(bval);
-    resp->make_response(buffer, mydir);
+      // set error html file
+//    auto it = _ErrorCodePath.find(http_code_);
+//    if (it != _ErrorCodePath.end()) {
+//        http_path_ = it->second;
+//    }
+
+    http_path_ = mydir + http_path_;
+    netlib::LOGGER.write_log(netlib::LL_Info, "response info - code: {}, path: {}, size: {}", 
+                                http_code_, http_path_, file_size);
+
+    if (200 != http_code_)
+        resp->init(http_code_, false, http_path_, 0);
+    else
+        resp->init(http_code_, request_.keep_alive_, http_path_, file_size);
+    resp->make_header(buffer);
+}
+
+void HttpConn::process_body(const netlib::TcpConnectionPtr& conn)
+{
+    if (200 != http_code_)
+        return;
+
+    FILE* pFile = fopen(http_path_.data(), "rb");
+    if (NULL == pFile)
+    {
+        //printf("open file error\n");
+        return;
+    }
+
+    // send num bytes every fread
+    // not control send speed
+    uint32_t readbytes = 0;
+    while (true) {
+        netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
+        //buffer->ensure_writable(1024);
+        readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, pFile);
+        if (0 == readbytes)
+            break;
+        buffer->has_written(readbytes);
+        conn->send(buffer);
+    }
+    fclose(pFile);
 }
 
 void HttpConn::do_post()
 {
+    if (request_.http_method_ != "POST")
+        return;
+
+    std::string::size_type n;
+    n = request_.http_url_.find("cgi");
+    if (n == std::string::npos)
+        return;
+            
     if (request_.post_.empty())
     {
         http_code_ = 400;
