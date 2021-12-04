@@ -1,9 +1,9 @@
 #include "HttpResponse.h"
 #include "Logger.h"
 
-#include <stdio.h>
-#include <cstring>
-#include <climits>
+//#include <stdio.h>
+//#include <cstring>
+//#include <climits>
 
 #include <unordered_set>
 
@@ -38,19 +38,19 @@ static const std::unordered_map<int, std::string> _CodeStatus = {
     { 404, "Not Found" },
 };
 
-static const std::unordered_map<int, std::string> _ErrorCodePath = {
-    { 400, "/400.html" },
-    { 403, "/403.html" },
-    { 404, "/404.html" },
-};
+//static const std::unordered_map<int, std::string> _ErrorCodePath = {
+//    { 400, "/400.html" },
+//    { 403, "/403.html" },
+//    { 404, "/404.html" },
+//};
 
-static const std::unordered_set<std::string> _Route = {
-"/index",
-"/login",
-"/register",
-"/picture",
-"/video"
-};
+//static const std::unordered_set<std::string> _Route = {
+//"/index",
+//"/login",
+//"/register",
+//"/picture",
+//"/video"
+//};
 
 static std::string GetFileType(std::string& path)
 {
@@ -78,22 +78,14 @@ HttpResponse::~HttpResponse()
     //UnmapFile();
 }
 
-void HttpResponse::init()
-{
-    http_code_ = 200;
-    keep_alive_ = false;
-    http_headers_.clear();
-    http_body_.clear();
-}
-
-void HttpResponse::set_code(int code)
+void HttpResponse::init(int code, bool keepalive, std::string& path, uint32_t len)
 {
     http_code_ = code;
-}
-
-void HttpResponse::set_keepalive(bool on)
-{
-    keep_alive_ = on;
+    keep_alive_ = keepalive;
+    path_ = path;
+    content_len_ = len;
+    http_headers_.clear();
+    //http_body_.clear();
 }
 
 //void HttpConn::make_response2(netlib::Buffer* buffer)
@@ -105,11 +97,23 @@ void HttpResponse::set_keepalive(bool on)
 //    buffer->write(temp, len);
 //}
 
-void HttpResponse::make_response(netlib::Buffer* buffer, std::string& path)
+void HttpResponse::make_header(netlib::Buffer* buffer)
 {
     auto it = _CodeStatus.find(http_code_); // _CodeStatus[http_code_]
     std::string str = fmt::format("HTTP/1.1 {} {}\r\n", http_code_, it->second);
     buffer->write(str);
+    if (200 != http_code_) // all error, no other headers and body
+    {
+        buffer->write("Connection: close\r\n\r\n");
+        return;
+    }
+
+    // other headers
+    for (const auto& header : http_headers_)
+    {
+        str = fmt::format("{}: {}\r\n", header.first, header.second);
+        buffer->write(str);
+    }
 
     if (keep_alive_)
     {
@@ -120,41 +124,11 @@ void HttpResponse::make_response(netlib::Buffer* buffer, std::string& path)
         buffer->write("Connection: close\r\n");
     }
 
-    str = fmt::format("Content-type: {}\r\n", GetFileType(path));
-    buffer->write(str);
-
-    FILE* pFile = fopen(path.data(), "rb");
-    if (NULL == pFile)
+    if (content_len_ > 0)
     {
-        //printf("open file error\n");
-        return;
-    }
-
-    fseek(pFile, 0, SEEK_END);
-    uint32_t FileSize = ftell(pFile);
-    fseek(pFile, 0, SEEK_SET);
-
-    str = fmt::format("Content-length: {}\r\n\r\n", FileSize);
-    buffer->write(str);
-
-    // other headers
-    for (const auto& header : http_headers_)
-    {
-        str = fmt::format("{}: {}\r\n", header.first, header.second);
+        str = fmt::format("Content-type: {}\r\nContent-length: {}\r\n\r\n", 
+                            GetFileType(path_), content_len_);
         buffer->write(str);
     }
-
-    // if size is very large, multi send?
-    // partition to send header and body
-    uint32_t readbytes = 0;
-    while (true) {
-        buffer->ensure_writable(512);
-        readbytes = fread(buffer->begin_write(), 1, 512, pFile);
-        if (0 == readbytes)
-            break;
-        //printf("file read bytes: %d\n", readbytes);
-        buffer->has_written(readbytes);
-    }
-    fclose(pFile);
 }
 
