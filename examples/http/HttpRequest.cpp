@@ -202,37 +202,25 @@ bool HttpRequest::parse_post(const char* at, size_t length)
     if (http_method_ == "POST" 
         && http_headers_["Content-Type"] == "application/x-www-form-urlencoded")
     {
-        //std::regex pattern(".*=.*</.*>");
-        std::smatch results;
-
-        // parse key1=value1&key2=value2&...
         std::string str_field;
         //std::string str_value;
 
-        std::regex reg("&");
-        std::regex reg2("(\\w+)=(\\w+)");
-        std::cregex_token_iterator pos(at, at + length, reg, -1);
-        //std::sregex_token_iterator pos(str.begin(), str.end(), reg, -1);
-        auto end = std::cregex_token_iterator();
-        for (; pos != end; ++pos)
+        std::regex pattern("(\\w+)=(\\w+)");
+        std::cregex_iterator iter(at, at + length, pattern);
+        std::cregex_iterator end;
+        for (; iter != end; ++iter)
         {
-            std::string temp = *pos;
-            //printf("split string: %s\n", temp.c_str());
-
-        	std::regex_match(temp, results, reg2);
-        	for (size_t i = 1; i < results.size(); ++i)
-        	{
-        	    //printf("match: %s\n", results.str(i).c_str());
+            for (unsigned i = 1; i < iter->size(); ++i) // i=1 means from first sub-match
+            {
                 if (str_field.empty())
-                    str_field = results.str(i);
+                    str_field = (*iter)[i];
                 else
                 {
-                    post_[str_field] = results.str(i);
+                    post_[str_field] = (*iter)[i];
                     str_field.clear();
                 }
-        	}
+            }
         }
-
     }
 
     return true;
