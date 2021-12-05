@@ -27,7 +27,7 @@ public:
 
     bool start(size_t thread_number, size_t max_request)
     {
-        if (thread_number < 1 || max_request < 1)
+        if (thread_number < 1 || max_request < 1 || !stop_)
             return false;
 
         stop_ = false;
@@ -90,7 +90,7 @@ private:
         	    cond_.wait(lock, [this](){ return (!tasks_.empty() || stop_); });
 
                 if (stop_)
-                    return;
+                    break;
 
                 task = std::move(tasks_.front());
                 tasks_.pop();
@@ -105,7 +105,7 @@ private:
     std::condition_variable cond_;
     bool stop_;
 
-    //int thread_number_; // max thread number
+    //size_t thread_number_; // max thread number
     size_t max_count_; // max task number in queue
 };
 
