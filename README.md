@@ -31,4 +31,4 @@ make
 - 更多示例
 
 ## 致谢
-- [muduo](https://github.com/chenshuo/muduo)
+[muduo](https://github.com/chenshuo/muduo)
