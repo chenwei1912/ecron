@@ -22,7 +22,7 @@ EventLoopPool::EventLoopPool(EventLoop* loop)
 
 EventLoopPool::~EventLoopPool()
 {
-    LOGGER.write_log(LL_Debug, "EventLoopPool dtor");
+    LOG_TRACE("EventLoopPool dtor");
 }
 
 void EventLoopPool::set_threads(size_t n)
@@ -40,7 +40,7 @@ void EventLoopPool::start()
         loops_.emplace_back(p);
         threads_.emplace_back(std::bind(&EventLoop::loop, p));
         if (threads_.back().get_id() == std::thread::id()) {
-            LOGGER.write_log(LL_Critical, "EventLoopPool thread is not activated");
+            LOG_CRITICAL("EventLoopPool thread is not activated");
             std::terminate();
         }
     }

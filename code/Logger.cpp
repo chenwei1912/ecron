@@ -1,7 +1,7 @@
 //#include "Utility.h"
 #include "Logger.h"
-//#include "ThreadPool.hpp"
-//#include "Buffer.h"
+#include "ThreadPool.hpp"
+#include "Buffer.h"
 
 #include <memory>
 //#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE // file name and line number
@@ -13,8 +13,6 @@
 
 using namespace netlib;
 
-std::shared_ptr<spdlog::logger> _logger;
-
 
 class Logger::LoggerImpl
 {
@@ -25,28 +23,31 @@ public:
     bool init(const char* file, bool async = false, bool truncate = false);
     void release();
 
+    inline bool is_init() const { return init_; }
     void flush();
 
     void set_level(LogLevel lv);
     LogLevel get_level() const;
 
-    bool filter_level(LogLevel lv);
+    //bool filter_level(LogLevel lv);
 	void log_string(LogLevel lv, std::string& str);
 
 private:
-    void async_log();
+    void async_log(BufferPtr buffer, spdlog::level::level_enum lv_spd);
 
     bool init_;
     std::atomic<LogLevel> lv_;
 
-//    bool async_;
-//    ThreadPool pool_;
+    std::shared_ptr<spdlog::logger> logger_;
+
+    bool async_;
+    ThreadPool pool_;
 };
 
 Logger::LoggerImpl::LoggerImpl()
     : init_(false)
     , lv_(LL_Info)
-    //, async_(false)
+    , async_(false)
 {
     //lv_.store(LL_Info);
 }
@@ -63,17 +64,14 @@ bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
     
     try
     {
-        //spdlog::get("console")->info("loggers can be retrieved from a global registry using the spdlog::get(logger_name) function");
-
-        // Create basic file logger (not rotated)
-        // spdlog::basic_logger_st
         if (async)
         {
-            spdlog::init_thread_pool(81920, 1);
-            _logger = spdlog::basic_logger_st<spdlog::async_factory>("basic_logger", strfile, truncate);
+            //spdlog::init_thread_pool(81920, 1);
+            //logger_ = spdlog::basic_logger_st<spdlog::async_factory>("basic_logger", strfile, truncate);
+            logger_ = spdlog::basic_logger_st("basic_logger", strfile, truncate);
         }
         else
-            _logger = spdlog::basic_logger_mt("basic_logger", strfile, truncate);
+            logger_ = spdlog::basic_logger_mt("basic_logger", strfile, truncate);
 
         //register it if you need to access it globally
         //spdlog::register_logger(g_logger);
@@ -81,7 +79,7 @@ bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
         spdlog::set_level(spdlog::level::trace);
 
         // %e:ms
-        spdlog::set_pattern("%C%m%d %T.%e %t %L %v");
+        spdlog::set_pattern("%C%m%d %T.%e %t %l %v");
 
         //_logger->flush_on(spdlog::level::info);
         //spdlog::flush_every(std::chrono::seconds(3));
@@ -92,10 +90,10 @@ bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
         return false;
     }
 
-//    async_ = async;
-//    if (async_)
-//        if (!pool_.start(1, 100000))
-//            return false;
+    async_ = async;
+    if (async_)
+        if (!pool_.start(1, 100000))
+            return false;
 
     lv_ = LL_Info;
     init_ = true;
@@ -107,13 +105,13 @@ void Logger::LoggerImpl::release()
     if (!init_)
         return;
 
-//    if (async_)
-//    {
-//        pool_.stop();
-//        async_ = false;
-//    }
+    if (async_)
+    {
+        pool_.stop();
+        async_ = false;
+    }
 
-    _logger->flush();
+    logger_->flush();
     spdlog::drop("basic_logger");
     lv_ = LL_Off;
     init_ = false;
@@ -124,7 +122,7 @@ void Logger::LoggerImpl::flush()
     if (!init_)
         return;
 
-    _logger->flush();
+    logger_->flush();
 }
 
 void Logger::LoggerImpl::set_level(LogLevel lv)
@@ -143,13 +141,13 @@ LogLevel Logger::LoggerImpl::get_level() const
     return lv_.load(std::memory_order::memory_order_relaxed);
 }
 
-bool Logger::LoggerImpl::filter_level(LogLevel lv)
-{
-    if (!init_ || lv < get_level())
-        return true;
+//bool Logger::LoggerImpl::filter_level(LogLevel lv)
+//{
+//    if (!init_ || lv < get_level())
+//        return true;
 
-     return false;
-}
+//     return false;
+//}
     
 void Logger::LoggerImpl::log_string(LogLevel lv, std::string& str)
 {
@@ -184,22 +182,22 @@ void Logger::LoggerImpl::log_string(LogLevel lv, std::string& str)
         return;
     }
 
-//    if (async)
-//    {
-//        netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
-//        //if (!buffer) exit();
-//        buffer->write(str); // fixme: avoid this copy
-//        pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer));
-//    }
-//    else
-    _logger->log(lv_spd, str.c_str());
-    //_logger->flush();
+    if (async_)
+    {
+        BufferPtr buffer = std::make_shared<Buffer>();
+        //if (!buffer) exit();
+        buffer->write(str); // fixme: avoid this copy
+        pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer, lv_spd));
+    }
+    else
+        logger_->log(lv_spd, str.c_str());
+    //logger_->flush();
 }
 
-//void Logger::LoggerImpl::async_log(netlib::BufferPtr buffer)
-//{
-//    _logger->log(lv_spd, str.c_str());
-//}
+void Logger::LoggerImpl::async_log(BufferPtr buffer, spdlog::level::level_enum lv_spd)
+{
+    logger_->log(lv_spd, buffer->begin_read());
+}
 
 
 Logger Logger::instance_;
@@ -212,6 +210,11 @@ bool Logger::init(const char* file, bool async, bool truncate)
 void Logger::release()
 {
     return impl_->release();
+}
+
+bool Logger::is_init()
+{
+    return impl_->is_init();
 }
 
 void Logger::flush()
@@ -240,14 +243,10 @@ Logger::~Logger()
     release();
 }
 
-//Logger::Logger(const Logger&) = delete {}
-	
-//Logger::const Logger& operator(const Logger&) = delete {}
-
-bool Logger::filter_level(LogLevel lv) const
-{
-    return impl_->filter_level(lv);
-}
+//bool Logger::filter_level(LogLevel lv) const
+//{
+//    return impl_->filter_level(lv);
+//}
 
 void Logger::log_string(LogLevel lv, std::string& str)
 {
@@ -260,6 +259,8 @@ void Logger::log_string(LogLevel lv, std::string& str)
 //{
 //    try
 //    {
+//        spdlog::get("console")->info("loggers can be retrieved from a global registry using the spdlog::get(logger_name) function");
+//
 //        // Console logger with color
 //        auto console = spdlog::stdout_color_mt("console");
 //        console->info("Welcome to spdlog!");

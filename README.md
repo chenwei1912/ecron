@@ -12,11 +12,13 @@
 - Linux
 - CPP11
 
-## 编译
-mkdir build  
-cd build  
-cmake ..  
-make  
+## 构建
+```bash
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+```
 工程目录下的output目录会生成静态库libnetlib和其他示例程序
 
 ## 测试

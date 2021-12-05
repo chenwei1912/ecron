@@ -80,19 +80,19 @@ bool HttpConn::parse(netlib::Buffer* buffer)
 {
     bool ret = request_.parse(buffer->begin_read(), buffer->readable_bytes());
     if (!ret) {
-        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer parse error");
+        LOG_ERROR("HttpServer parse error");
         http_code_ = 400;
     }
     else
     {
         buffer->has_readed(request_.count_parsed_);
         if (request_.msgcomplete_) {
-            netlib::LOGGER.write_log(netlib::LL_Info, "request parse OK! method: {}, url: {}", 
+            LOG_INFO("request parse OK! method: {}, url: {}", 
                                         request_.http_method_, request_.http_url_);
             http_code_ = 200;
             http_path_ = request_.http_url_;
         } else {
-            netlib::LOGGER.write_log(netlib::LL_Trace, "request parsed {}, need more data", 
+            LOG_TRACE("request parsed {}, need more data", 
                                         request_.count_parsed_);
             return false;
         }
@@ -171,7 +171,7 @@ void HttpConn::process_header(netlib::Buffer* buffer, HttpResponse* resp)
 //    }
 
     http_path_ = mydir + http_path_;
-    netlib::LOGGER.write_log(netlib::LL_Info, "response info - code: {}, path: {}, size: {}", 
+    LOG_INFO("response - code: {}, path: {}, size: {}", 
                                 http_code_, http_path_, file_size);
 
     if (200 != http_code_)
@@ -253,14 +253,14 @@ void HttpConn::do_post()
 
 bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int login)
 {
-    netlib::LOGGER.write_log(netlib::LL_Info, "verify user - name: {}, password: {}, login: {}", 
+    LOG_INFO("verify user - name: {}, password: {}, login: {}", 
                                 name, pwd, login);
 
     SqlHandler_t sql;
     SqlConnRAII(&sql, SqlConnPool::Instance());
     if (nullptr == sql)
     {
-        netlib::LOGGER.write_log(netlib::LL_Error, "database connection error");
+        LOG_ERROR("database connection error");
         return false;
     }
 
@@ -269,7 +269,7 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
 
     query_string = fmt::format("SELECT username, password FROM user WHERE username='{}' LIMIT 1", name);
     if (mysql_query(sql, query_string.c_str())) {
-        netlib::LOGGER.write_log(netlib::LL_Error, "SELECT query error: {}", query_string);
+        LOG_ERROR("SELECT query error: {}", query_string);
         return false;
     }
 
@@ -281,7 +281,7 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
         {
             query_string = fmt::format("INSERT INTO user(username, password) VALUES('{}','{}')", name.c_str(), pwd.c_str());
             if (mysql_query(sql, query_string.c_str()))
-                netlib::LOGGER.write_log(netlib::LL_Error, "INSERT query error: {}", query_string);
+                LOG_ERROR("INSERT query error: {}", query_string);
             else
                 flag = true;
         }
@@ -298,15 +298,15 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
                 if (pwd == password)
                     flag = true;
                 else
-                    netlib::LOGGER.write_log(netlib::LL_Error, "password auth error");
+                    LOG_ERROR("password auth error");
             }
     }
     mysql_free_result(res);
 
     if (flag)
-        netlib::LOGGER.write_log(netlib::LL_Info, "verify user OK!");
+        LOG_INFO("verify user OK!");
      else
-        netlib::LOGGER.write_log(netlib::LL_Info, "verify user failed!");
+        LOG_INFO("verify user failed!");
     //SqlConnPool::Instance()->FreeConn(sql);
     return flag;
 }

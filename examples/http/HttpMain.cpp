@@ -12,7 +12,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    bool ret = netlib::LOGGER.init("httpserver.log");
+    bool ret = false;
+    ret = netlib::LOGGER.init("httpserver.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
         return -1;

@@ -32,14 +32,14 @@ bool HttpServer::start(const char* strip, unsigned short port)
     SqlConnPool* pool = SqlConnPool::Instance();
     ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 2);
     if (!ret) {
-        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start database failed!");
+        LOG_ERROR("HttpServer start database failed!");
         return false;
     }
 
     // workers
     ret = workers_.start(2, 100000);
     if (!ret) {
-        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start worker threads failed!");
+        LOG_ERROR("HttpServer start worker threads failed!");
         return false;
     }
 
@@ -47,7 +47,7 @@ bool HttpServer::start(const char* strip, unsigned short port)
     server_.set_io_threads(2);
     ret = server_.start(strip, port);
     if (!ret) {
-        netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer start listen failed!");
+        LOG_ERROR("HttpServer start listen failed!");
         return false;
     }
 
@@ -70,7 +70,7 @@ void HttpServer::on_connection(const netlib::TcpConnectionPtr& conn)
 
 void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
 {
-    netlib::LOGGER.write_log(netlib::LL_Info, "{}", buffer->begin_read());
+    LOG_INFO("{}", buffer->begin_read());
 
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
     bool complete = http_conn->parse(buffer);

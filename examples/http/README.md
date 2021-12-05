@@ -6,6 +6,20 @@ resoures目录下缺失的三个大文件资源 xxx.jpg xxx.mp4 test1.jpg 可去
 * 利用 http_parser 开源库解析HTTP请求报文，实现处理静态资源的请求。
 * 利用RAII机制实现了数据库连接池，减少数据库连接建立与关闭的开销，同时实现了用户注册登录功能。
 
+## html页面和跳转
+* / 或 /index 主页面
+* /register 注册
+* /register_error 注册失败
+* /login 登录
+* /welcome 登录成功
+* /login_error 登录失败
+* /picture 图片
+* /video 视频
+* /fans 关于
+
+* /register_cgi 注册请求(POST)
+* /login_cgi 登录请求(POST)
+
 ## 环境要求
 * Linux
 * CPP11
