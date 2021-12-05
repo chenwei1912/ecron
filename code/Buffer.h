@@ -8,7 +8,7 @@
 
 
 #include <vector>
-#include <string>
+#include <memory>
 
 
 
@@ -56,6 +56,8 @@ private:
     size_t read_index_;
     size_t write_index_;
 };
+
+typedef std::shared_ptr<Buffer> BufferPtr;
 
 }// namespace netlib
 

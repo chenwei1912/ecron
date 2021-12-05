@@ -24,7 +24,6 @@ class EventLoop;
 class TcpConnection;
 
 typedef std::shared_ptr<TcpConnection> TcpConnectionPtr;
-typedef std::shared_ptr<Buffer> BufferPtr;
 
 typedef std::function<void(const TcpConnectionPtr&)> ConnectionCallback;
 typedef std::function<void(const TcpConnectionPtr&, Buffer*, size_t)> RecvCallback;

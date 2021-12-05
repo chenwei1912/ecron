@@ -22,7 +22,7 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name)
 
 TcpConnection::~TcpConnection()
 {
-    LOGGER.write_log(LL_Trace, "TcpConnection[{}] destructing", name_);
+    LOG_TRACE("TcpConnection[{}] destructing", name_);
 
     if (socket_.is_open())
         socket_.close();
@@ -57,7 +57,7 @@ void TcpConnection::close_loop()
 {
     if (connected_)
     {
-        LOGGER.write_log(LL_Info, "TcpConnection[{}] local shutdown", name_);
+        LOG_INFO("TcpConnection[{}] local shutdown", name_);
 
         boost::system::error_code ignored_ec;
         socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
@@ -126,7 +126,7 @@ void TcpConnection::handle_establish()
 
     async_recv();
 
-    LOGGER.write_log(LL_Info, "TcpConnection[{}] establish: local[{}:{}] remote[{}:{}]", 
+    LOG_INFO("TcpConnection[{}] establish: local[{}:{}] remote[{}:{}]", 
                         name_, local_ep_.address().to_v4().to_string(), local_ep_.port(), 
                         remote_ep_.address().to_v4().to_string(), remote_ep_.port());
 
@@ -184,7 +184,7 @@ void TcpConnection::handle_close()
     // 10061 boost::asio::error::connection_refused
     if (connected_)
     {
-        LOGGER.write_log(LL_Info, "TcpConnection[{}] peer shutdown", name_);
+        LOG_INFO("TcpConnection[{}] peer shutdown", name_);
 
         boost::system::error_code ignored_ec;
         socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);

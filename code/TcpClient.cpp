@@ -18,7 +18,7 @@ TcpClient::TcpClient(EventLoop* loop, const std::string& name)
 
 TcpClient::~TcpClient()
 {
-    LOGGER.write_log(LL_Trace, "TcpClient[{}] destructing", name_);
+    LOG_TRACE("TcpClient[{}] destructing", name_);
 }
 
 bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
@@ -33,7 +33,7 @@ bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
     ep_.address(ip::make_address_v4(strip));
     ep_.port(port);
     interval_ = interval;
-    LOGGER.write_log(LL_Info, "TcpClient[{}] start connect to {}:{}", name_, strip, port);
+    LOG_INFO("TcpClient[{}] start connect to {}:{}", name_, strip, port);
 
     loop_->post(std::bind(&TcpClient::connect_loop, this));
     return true;
@@ -84,7 +84,7 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
 
     if (ec) {
         // 110	 boost::asio::error::timed_out
-        LOGGER.write_log(LL_Error, "TcpClient[{}] connect error : {}", name_, ec.value());
+        LOG_ERROR("TcpClient[{}] connect error : {}", name_, ec.value());
 
         conn_.reset();
         if (boost::asio::error::operation_aborted == ec.value()) {
@@ -99,14 +99,14 @@ void TcpClient::handle_connect(const boost::system::error_code& ec)
 
     ++count_;
     conn_->init();
-    LOGGER.write_log(LL_Info, "TcpClient[{}] establish connection to {}:{}", 
+    LOG_INFO("TcpClient[{}] establish connection to {}:{}", 
                         name_, conn_->remote_ip(), conn_->remote_port());
     conn_->handle_establish();
 }
 
 void TcpClient::handle_timeout()
 {
-    LOGGER.write_log(LL_Debug, "TcpClient[{}] interval elapsed, restart connect...", name_);
+    LOG_DEBUG("TcpClient[{}] interval elapsed, restart connect...", name_);
     connect_loop();
 }
 

@@ -18,7 +18,7 @@ EventLoop::EventLoop()
 
 EventLoop::~EventLoop()
 {
-    LOGGER.write_log(LL_Trace, "EventLoop {} destructing", static_cast<void*>(this));
+    LOG_TRACE("EventLoop {} destructing", static_cast<void*>(this));
 }
 
 void EventLoop::loop()
@@ -31,11 +31,11 @@ void EventLoop::loop()
     // log loop thread id
     // std::hash<std::thread::id>{}(thread_)
 
-    LOGGER.write_log(LL_Trace, "EventLoop {} start looping", static_cast<void*>(this)); // fmt::ptr(this)
+    LOG_TRACE("EventLoop {} start looping", static_cast<void*>(this)); // fmt::ptr(this)
 
     io_context_.run();
 
-    LOGGER.write_log(LL_Trace, "EventLoop {} stop looping", static_cast<void*>(this));
+    LOG_TRACE("EventLoop {} stop looping", static_cast<void*>(this));
 }
 
 void EventLoop::stop()
