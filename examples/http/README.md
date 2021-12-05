@@ -41,5 +41,5 @@ INSERT INTO user(username, password) VALUES('name', 'password');
 * config配置
 
 ## 致谢
-[@qinguoyi](https://github.com/qinguoyi/TinyWebServer)  
-[@markparticle](https://github.com/markparticle/WebServer)
+[qinguoyi](https://github.com/qinguoyi/TinyWebServer)  
+[markparticle](https://github.com/markparticle/WebServer)

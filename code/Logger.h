@@ -25,7 +25,7 @@ class Logger
 public:
     static Logger instance_;
 
-    bool init(const char* file, bool truncate = false);
+    bool init(const char* file, bool async = false, bool truncate = false);
     void release();
 
 //    void myprint()
