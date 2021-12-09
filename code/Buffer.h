@@ -37,7 +37,7 @@ public:
     size_t writable_bytes() const { return buff_.size() - write_index_; }
 
     char* begin_write() { return &buff_[write_index_]; }
-    char* begin_read() { return &buff_[read_index_]; }
+    const char* begin_read() const { return &buff_[read_index_]; }
 
     //void read();
     void write(const char* data, size_t n);

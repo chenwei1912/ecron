@@ -73,6 +73,9 @@ int HttpConn::init(const netlib::TcpConnectionPtr& conn)
     http_path_.clear();
 
     conn_weak_ = conn;
+    keep_alive_ = false;
+    file_ = nullptr;
+    complete_ = false;
     return 0;
 }
 
@@ -110,11 +113,6 @@ void HttpConn::process()
         HttpResponse resp;
         process_header(send_buffer.get(), &resp);
         conn->send(send_buffer);
-
-        process_body(conn);
-
-        if (!resp.get_keepalive())
-            conn->close();
     }
 }
 
@@ -174,39 +172,78 @@ void HttpConn::process_header(netlib::Buffer* buffer, HttpResponse* resp)
     LOG_INFO("response - code: {}, path: {}, size: {}", 
                                 http_code_, http_path_, file_size);
 
-    if (200 != http_code_)
+    if (200 != http_code_) {
         resp->init(http_code_, false, http_path_, 0);
-    else
+        complete_ = true;
+    }
+    else {
         resp->init(http_code_, request_.keep_alive_, http_path_, file_size);
+        complete_ = false;
+     }
     resp->make_header(buffer);
+    keep_alive_ = resp->keep_alive_;
 }
 
-void HttpConn::process_body(const netlib::TcpConnectionPtr& conn)
+void HttpConn::process_body()
 {
-    if (200 != http_code_)
-        return;
-
-    FILE* pFile = fopen(http_path_.data(), "rb");
-    if (NULL == pFile)
+//    if (200 != http_code_)
+//        return;
+    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    if (conn)
     {
-        //printf("open file error\n");
-        return;
-    }
+        if (nullptr == file_) {
+            file_ = fopen(http_path_.data(), "rb");
+            if (nullptr == file_) {
+                LOG_ERROR("response - open file failed : {}", http_path_);
+                return;
+            }
+        }
 
-    // send num bytes every fread
-    // not control send speed
-    uint32_t readbytes = 0;
-    while (true) {
+        uint32_t readbytes = 0;
         netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
         //buffer->ensure_writable(1024);
-        readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, pFile);
-        if (0 == readbytes)
-            break;
+        readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, file_);
+        if (readbytes < netlib::Buffer::InitialSize) {
+            fclose(file_);
+            complete_ = true;
+        }
+//        if (0 == readbytes) {
+//            fclose(file_);
+//            complete_ = true;
+//            return;
+//        }
+
         buffer->has_written(readbytes);
         conn->send(buffer);
     }
-    fclose(pFile);
 }
+
+//void HttpConn::process_body(const netlib::TcpConnectionPtr& conn)
+//{
+//    if (200 != http_code_)
+//        return;
+
+//    FILE* pFile = fopen(http_path_.data(), "rb");
+//    if (NULL == pFile)
+//    {
+//        //printf("open file error\n");
+//        return;
+//    }
+
+//    // send num bytes every fread
+//    // not control send speed
+//    uint32_t readbytes = 0;
+//    while (true) {
+//        netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
+//        //buffer->ensure_writable(1024);
+//        readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, pFile);
+//        if (0 == readbytes)
+//            break;
+//        buffer->has_written(readbytes);
+//        conn->send(buffer);
+//    }
+//    fclose(pFile);
+//}
 
 void HttpConn::do_post()
 {

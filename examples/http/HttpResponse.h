@@ -24,11 +24,11 @@ struct HttpResponse
     HttpResponse();
     ~HttpResponse();
 
-    void init(int code, bool keepalive, std::string& path, uint32_t len);
+    void init(int code, bool keepalive, const std::string& path, uint32_t len);
 
     //void set_code(int code) { http_code_ = code; }
     //void set_keepalive(bool on) { keep_alive_ = on; }
-    bool get_keepalive() { return keep_alive_; }
+    //bool get_keepalive() { return keep_alive_; }
     //void set_contentlength(uint32_t len) { content_len_ = len; }
 
     void make_header(netlib::Buffer* buffer);
