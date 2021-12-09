@@ -78,7 +78,7 @@ HttpResponse::~HttpResponse()
     //UnmapFile();
 }
 
-void HttpResponse::init(int code, bool keepalive, std::string& path, uint32_t len)
+void HttpResponse::init(int code, bool keepalive, const std::string& path, uint32_t len)
 {
     http_code_ = code;
     keep_alive_ = keepalive;

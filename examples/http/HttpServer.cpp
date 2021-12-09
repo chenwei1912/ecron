@@ -30,21 +30,21 @@ bool HttpServer::start(const char* strip, unsigned short port)
 
     // database
     SqlConnPool* pool = SqlConnPool::Instance();
-    ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 2);
+    ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 1);
     if (!ret) {
         LOG_ERROR("HttpServer start database failed!");
         return false;
     }
 
     // workers
-    ret = workers_.start(2, 100000);
+    ret = workers_.start(1, 100000);
     if (!ret) {
         LOG_ERROR("HttpServer start worker threads failed!");
         return false;
     }
 
     // network
-    server_.set_io_threads(2);
+    server_.set_io_threads(1);
     ret = server_.start(strip, port);
     if (!ret) {
         LOG_ERROR("HttpServer start listen failed!");
@@ -77,17 +77,24 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     if (complete)
     {
         workers_.append(std::bind(&HttpConn::process, http_conn));
-
-        // start a new HttpConn
-        HttpConnPtr http_new = std::make_shared<HttpConn>();
-        http_new->init(conn);
-        conn->set_context(http_new);
     }
 }
 
 void HttpServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 {
-    //std::cout << "send data complete." << std::endl;
+    HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
+    if (http_conn->is_complete()) {
+        if (http_conn->is_keepalive()) {
+            // start a new HttpConn
+            HttpConnPtr http_new = std::make_shared<HttpConn>();
+            http_new->init(conn);
+            conn->set_context(http_new);
+        }
+        else
+            conn->close();
+    }
+    else
+        workers_.append(std::bind(&HttpConn::process_body, http_conn));
 }
 
 void HttpServer::on_idle()

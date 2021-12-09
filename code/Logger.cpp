@@ -1,7 +1,6 @@
 //#include "Utility.h"
 #include "Logger.h"
 #include "ThreadPool.hpp"
-#include "Buffer.h"
 
 #include <memory>
 //#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE // file name and line number
@@ -30,7 +29,8 @@ public:
     LogLevel get_level() const;
 
     //bool filter_level(LogLevel lv);
-	void log_string(LogLevel lv, std::string& str);
+	void log_string(LogLevel lv, const std::string& buffer);
+	void log_buffer(LogLevel lv, const BufferPtr& buffer);
 
 private:
     void async_log(BufferPtr buffer, spdlog::level::level_enum lv_spd);
@@ -113,6 +113,7 @@ void Logger::LoggerImpl::release()
 
     logger_->flush();
     spdlog::drop("basic_logger");
+    spdlog::shutdown();
     lv_ = LL_Off;
     init_ = false;
 }
@@ -148,12 +149,8 @@ LogLevel Logger::LoggerImpl::get_level() const
 
 //     return false;
 //}
-    
-void Logger::LoggerImpl::log_string(LogLevel lv, std::string& str)
+void Logger::LoggerImpl::log_string(LogLevel lv, const std::string& str)
 {
-    //if (!init_ || lv < level_) // filter log level
-    //    return;
-
     spdlog::level::level_enum lv_spd = spdlog::level::off;
     switch (lv)
     {
@@ -190,7 +187,49 @@ void Logger::LoggerImpl::log_string(LogLevel lv, std::string& str)
         pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer, lv_spd));
     }
     else
-        logger_->log(lv_spd, str.c_str());
+        logger_->log(lv_spd, str);
+    //logger_->flush();
+}
+
+void Logger::LoggerImpl::log_buffer(LogLevel lv, const BufferPtr& buffer)
+{
+    //if (!init_ || lv < level_) // filter log level
+    //    return;
+
+    spdlog::level::level_enum lv_spd = spdlog::level::off;
+    switch (lv)
+    {
+    case LL_Trace:
+        lv_spd = spdlog::level::trace;
+        break;
+    case LL_Debug:
+        lv_spd = spdlog::level::debug;
+        break;
+    case LL_Info:
+        lv_spd = spdlog::level::info;
+        break;
+    case LL_Warn:
+        lv_spd = spdlog::level::warn;
+        break;
+    case LL_Error:
+        lv_spd = spdlog::level::err;
+        break;
+    case LL_Critical:
+        lv_spd = spdlog::level::critical;
+        break;
+    case LL_Off:
+        lv_spd = spdlog::level::off;
+        break;
+    default:
+        return;
+    }
+
+    if (async_)
+    {
+        pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer, lv_spd));
+    }
+    else
+        logger_->log(lv_spd, buffer->begin_read());
     //logger_->flush();
 }
 
@@ -248,11 +287,15 @@ Logger::~Logger()
 //    return impl_->filter_level(lv);
 //}
 
-void Logger::log_string(LogLevel lv, std::string& str)
+void Logger::log_string(LogLevel lv, const std::string& str)
 {
     return impl_->log_string(lv, str);
 }
 
+void Logger::log_buffer(LogLevel lv, const BufferPtr& buffer)
+{
+    return impl_->log_buffer(lv, buffer);
+}
 
 
 //void test_spdlog()
