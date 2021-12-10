@@ -24,7 +24,8 @@ struct HttpResponse
     HttpResponse();
     ~HttpResponse();
 
-    void init(int code, bool keepalive, const std::string& path, uint32_t len);
+    void init();
+    //void init(int code, bool keepalive, const std::string& path, uint32_t len);
 
     //void set_code(int code) { http_code_ = code; }
     //void set_keepalive(bool on) { keep_alive_ = on; }
@@ -35,12 +36,12 @@ struct HttpResponse
     //void make_response2(netlib::Buffer* buffer);
     //std::string GetFileType(std::string& path);
 
-    int http_code_;
+    int code_;
     bool keep_alive_;
     std::string path_;
     uint32_t content_len_;
-    std::unordered_map<std::string, std::string> http_headers_;
-    //std::string http_body_;
+    std::unordered_map<std::string, std::string> headers_;
+    //std::string body_;
 };
 
 #endif // _HTTP_RESPONSE_H_

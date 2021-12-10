@@ -36,8 +36,8 @@ public:
     size_t readable_bytes() const { return write_index_ - read_index_; }
     size_t writable_bytes() const { return buff_.size() - write_index_; }
 
-    char* begin_write() { return &buff_[write_index_]; }
-    const char* begin_read() const { return &buff_[read_index_]; }
+    char* begin_write() { return begin() + write_index_; }
+    const char* begin_read() const { return begin() + read_index_; }
 
     //void read();
     void write(const char* data, size_t n);
@@ -50,6 +50,9 @@ public:
 
 
 private:
+    char* begin() { return &buff_[0]; }
+    const char* begin() const { return &buff_[0]; }
+  
     void make_space(size_t n);
 
     std::vector<char> buff_;

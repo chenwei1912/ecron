@@ -4,7 +4,7 @@
 #include "SqlConnPool.h"
 
 
-//#include <iostream>
+#include <iostream>
 
 
 HttpServer::HttpServer(netlib::EventLoop* loop)
@@ -77,24 +77,19 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     if (complete)
     {
         workers_.append(std::bind(&HttpConn::process, http_conn));
+
+        // queue<HttpConnPtr> for continuous serveral requests?
+
+        //HttpConnPtr http_new = std::make_shared<HttpConn>();
+        //http_new->init(conn);
+        //conn->set_context(http_new);
     }
 }
 
 void HttpServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 {
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    if (http_conn->is_complete()) {
-        if (http_conn->is_keepalive()) {
-            // start a new HttpConn
-            HttpConnPtr http_new = std::make_shared<HttpConn>();
-            http_new->init(conn);
-            conn->set_context(http_new);
-        }
-        else
-            conn->close();
-    }
-    else
-        workers_.append(std::bind(&HttpConn::process_body, http_conn));
+    workers_.append(std::bind(&HttpConn::process_body, http_conn));
 }
 
 void HttpServer::on_idle()

@@ -193,7 +193,7 @@ bool HttpRequest::parse(const char* pdata, uint32_t len)
         return false;
     }
 
-    count_parsed_ += nparsed;
+    count_parsed_ = nparsed;
     return true;
 }
 
