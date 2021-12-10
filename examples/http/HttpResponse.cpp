@@ -1,12 +1,6 @@
 #include "HttpResponse.h"
 #include "Logger.h"
 
-//#include <stdio.h>
-//#include <cstring>
-//#include <climits>
-
-#include <unordered_set>
-
 
 static const std::unordered_map<std::string, std::string> _SuffixType = {
     { ".html",  "text/html" },
@@ -68,8 +62,6 @@ static std::string GetFileType(std::string& path)
 
 
 HttpResponse::HttpResponse()
-        : http_code_(200)
-        , keep_alive_(false)
 {
 }
 
@@ -78,15 +70,25 @@ HttpResponse::~HttpResponse()
     //UnmapFile();
 }
 
-void HttpResponse::init(int code, bool keepalive, const std::string& path, uint32_t len)
+void HttpResponse::init()
 {
-    http_code_ = code;
-    keep_alive_ = keepalive;
-    path_ = path;
-    content_len_ = len;
-    http_headers_.clear();
-    //http_body_.clear();
+    code_ = 0;
+    keep_alive_ = false;
+    path_.clear();
+    content_len_ = 0;
+    headers_.clear();
+    //body_.clear();
 }
+
+//void HttpResponse::init(int code, bool keepalive, const std::string& path, uint32_t len)
+//{
+//    http_code_ = code;
+//    keep_alive_ = keepalive;
+//    path_ = path;
+//    content_len_ = len;
+//    headers_.clear();
+//    //body_.clear();
+//}
 
 //void HttpConn::make_response2(netlib::Buffer* buffer)
 //{
@@ -99,30 +101,26 @@ void HttpResponse::init(int code, bool keepalive, const std::string& path, uint3
 
 void HttpResponse::make_header(netlib::Buffer* buffer)
 {
-    auto it = _CodeStatus.find(http_code_); // _CodeStatus[http_code_]
-    std::string str = fmt::format("HTTP/1.1 {} {}\r\n", http_code_, it->second);
+    auto it = _CodeStatus.find(code_); // _CodeStatus[http_code_]
+    std::string str = fmt::format("HTTP/1.1 {} {}\r\n", code_, it->second);
     buffer->write(str);
-    if (200 != http_code_) // all error, no other headers and body
+    if (200 != code_) // all error, no other headers and body
     {
         buffer->write("Connection: close\r\n\r\n");
         return;
     }
 
     // other headers
-    for (const auto& header : http_headers_)
+    for (const auto& item : headers_)
     {
-        str = fmt::format("{}: {}\r\n", header.first, header.second);
+        str = fmt::format("{}: {}\r\n", item.first, item.second);
         buffer->write(str);
     }
 
     if (keep_alive_)
-    {
         buffer->write("Connection: Keep-Alive\r\n");
-    }
     else
-    {
         buffer->write("Connection: close\r\n");
-    }
 
     if (content_len_ > 0)
     {

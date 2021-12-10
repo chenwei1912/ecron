@@ -2,6 +2,8 @@
 #include "EventLoop.h"
 #include "Logger.h"
 
+#include <iostream>
+
 using namespace netlib;
 
 //namespace asio = boost::asio;
@@ -99,8 +101,8 @@ void TcpConnection::send_loop(BufferPtr b)
 void TcpConnection::async_recv()
 {
     // start async receive
-    if (0 == recv_buffer_.writable_bytes())
-        recv_buffer_.ensure_writable(Buffer::InitialSize);
+    //if (0 == recv_buffer_.writable_bytes())
+    recv_buffer_.ensure_writable(Buffer::InitialSize);
 
     socket_.async_receive(boost::asio::buffer(recv_buffer_.begin_write(), recv_buffer_.writable_bytes()), 
                 std::bind(&TcpConnection::handle_recv, shared_from_this(), 
