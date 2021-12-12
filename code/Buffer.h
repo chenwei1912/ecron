@@ -45,9 +45,14 @@ public:
 
     void has_written(size_t n);
     void has_readed(size_t n);
+    void has_readall();
+
+    std::string read_string();
+    std::string read_string(size_t n);
 
     void ensure_writable(size_t n);
 
+    void shrink();
 
 private:
     char* begin() { return &buff_[0]; }

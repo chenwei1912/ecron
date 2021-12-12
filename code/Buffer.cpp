@@ -2,8 +2,6 @@
 
 #include <algorithm>
 
-#include <iostream>
-
 
 using namespace netlib;
 
@@ -58,10 +56,41 @@ void Buffer::has_readed(size_t n)
     if (n < readable_bytes())
         read_index_ += n;
     else
-    {
-        read_index_ = 0;
-        write_index_ = 0;
-    }
+        has_readall();
+}
+
+void Buffer::has_readall()
+{
+    read_index_ = 0;
+    write_index_ = 0;
+}
+
+std::string Buffer::read_string()
+{
+    return read_string(readable_bytes());
+}
+
+std::string Buffer::read_string(size_t n)
+{
+    //assert(n <= readableBytes());
+    size_t len = readable_bytes();
+    if (n > len)
+        n = len;
+
+    std::string str(begin_read(), n);
+    has_readed(n);
+    return str;
+}
+
+void Buffer::ensure_writable(size_t n)
+{
+    if (n > writable_bytes())
+        make_space(n);
+}
+
+void Buffer::shrink()
+{
+    buff_.shrink_to_fit(); // cpp11
 }
 
 void Buffer::make_space(size_t n)
@@ -82,9 +111,5 @@ void Buffer::make_space(size_t n)
     }
 }
 
-void Buffer::ensure_writable(size_t n)
-{
-    if (n > writable_bytes())
-        make_space(n);
-}
+
 
