@@ -77,10 +77,10 @@ void TcpConnection::send(const char* data, size_t n)
     BufferPtr buff_ptr = std::make_shared<Buffer>(n);
     buff_ptr->write(data, n);
 
-    loop_->dispatch(std::bind(&TcpConnection::send_loop, shared_from_this(), buff_ptr));
+    send(buff_ptr);
 }
 
-void TcpConnection::send(BufferPtr buffer)
+void TcpConnection::send(const BufferPtr& buffer)
 {
     if (!buffer || 0 == buffer->readable_bytes())
         return;

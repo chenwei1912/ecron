@@ -45,7 +45,7 @@ public:
     void close(); // active shutdown connection
 
     void send(const char* data, size_t n);
-    void send(BufferPtr buffer);
+    void send(const BufferPtr& buffer);
     void handle_establish();
 
     inline boost::asio::ip::tcp::socket& get_socket() { return socket_; } // internal use

@@ -23,4 +23,5 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/output)
 include_directories(${PROJECT_SOURCE_DIR}/code)
 
 add_subdirectory(code)
+add_subdirectory(tests)
 add_subdirectory(examples)

@@ -46,15 +46,13 @@ public:
     template<typename... Args> // fmt::string_view
     void write_log(LogLevel lv, const char* format_str, const Args&... args)
     {
-//        if (filter_level(lv))
-//            return;
-
 //        try {
         BufferPtr buffer = std::make_shared<Buffer>();
         //if (!buffer) exit();
         // message len not more than buffer len
         fmt::format_to(buffer->begin_write(), format_str, args...);
         //std::string msg = fmt::format(format_str, args...);
+        //buffer.has_written(it.count()); // auto it = fmt::format_to
         log_buffer(lv, buffer);
 //        } catch (const fmt::v5::format_error& ex) {
 //            std::cout << "format_error - " << sizeof...(args) << " - "<< format_str.data() << std::endl;
