@@ -7,14 +7,11 @@
 #include "RpcChannelImpl.h"
 #include "my_service.pb.h"
 
-
-
 class RpcClient
 {
 public:
     explicit RpcClient(netlib::EventLoop* loop)
-        : loop_(loop)
-        , client_(loop, "RpcClient")
+        : client_(loop, "RpcClient")
         , channel_(new RpcChannelImpl())
         , stub_(channel_.get())
     {
@@ -32,16 +29,15 @@ public:
         client_.connect(strip, port);
     }
 
+    void echo_method();
+
 private:
     void on_connection(const netlib::TcpConnectionPtr& conn);
     void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
     //void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
 
-    void on_done(EchoResponse* resp);
+    void on_done(RpcController* ctl, EchoResponse* resp);
 
-    void invoke_method();
-
-    netlib::EventLoop* loop_;
     netlib::TcpClient client_;
 
     RpcChannelImplPtr channel_;
@@ -52,7 +48,8 @@ void RpcClient::on_connection(const netlib::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         channel_->set_conn(conn);
-        loop_->add_timer(1, std::bind(&RpcClient::invoke_method, this), true);
+
+        client_.get_loop()->add_timer(1, std::bind(&RpcClient::echo_method, this), true);
     }
     else {
         //std::cout << "tcp connection closed" << std::endl;
@@ -69,21 +66,26 @@ void RpcClient::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* bu
 
 //}
 
-void RpcClient::on_done(EchoResponse* resp)
+void RpcClient::on_done(RpcController* ctl, EchoResponse* resp)
 {
     LOG_INFO("RpcClient recv echo: {}", resp->message());
     //client_.disconnect();
+
+    //delete ctl;
+    //delete resp;
 }
 
-void RpcClient::invoke_method()
+void RpcClient::echo_method()
 {
     EchoRequest request;
     request.set_message("hello, rpc");
+
+    RpcController* ctrl = new RpcController; // delete in channel
     
     EchoResponse* response = new EchoResponse; // delete in channel
-    auto done = google::protobuf::NewCallback(this, &RpcClient::on_done, response);
+    auto done = google::protobuf::NewCallback(this, &RpcClient::on_done, ctrl, response);
 
-    stub_.Echo(NULL, &request, response, done);
+    stub_.Echo(ctrl, &request, response, done);
 }
 
 void idle_func()

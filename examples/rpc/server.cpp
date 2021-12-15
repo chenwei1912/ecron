@@ -20,6 +20,11 @@ public:
     {
         LOG_TRACE("EchoService method Echo : {}", request->message());
         response->set_message(request->message());
+
+        // fill RpcController result
+        //if (nullptr != controller)
+            //controller->error_code_ = 0;
+        
         done->Run();
     }
 
@@ -34,6 +39,11 @@ public:
         LOG_TRACE("EchoService method Add : {},{}", a, b);
 
 	    response->set_result(a + b);
+
+        // fill RpcController result
+        //if (nullptr != controller)
+            //controller->error_code_ = 0;
+
         done->Run();
     }
 };

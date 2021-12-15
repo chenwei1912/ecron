@@ -1,14 +1,63 @@
 #include "RpcChannelImpl.h"
-//#include "Logger.h"
+#include "Logger.h"
 
 #include "google/protobuf/descriptor.h"
 
 #include "rpc.pb.h"
 
 
+static const std::unordered_map<int, std::string> _CodeError = {
+    { 0, "" },
+    { 1, "no service" },
+    { 2, "no method" },
+    { 3, "invalid request" },
+    { 4, "invalid response" },
+    { 5, "invoke timeout" },
+};
+
 typedef std::shared_ptr<google::protobuf::Message> MessagePtr;
 
 
+RpcController::RpcController()
+//    : loop_(loop)
+//    , server_(loop, "HttpServer")
+{
+}
+
+RpcController::~RpcController()
+{
+    LOG_TRACE("RpcController destructing");
+}
+
+//std::string RpcController::ErrorText() const
+//{
+//    std::string str;
+//    switch (error_code_)
+//    {
+//    case 0:
+//        str = "";
+//        break;
+//    case 1:
+//        str = "";
+//        break;
+//    case 2:
+//        str = "";
+//        break;
+//    case 3:
+//        str = "";
+//        break;
+//    case 4:
+//        str = "";
+//        break;
+//    case 5:
+//        str = "";
+//        break;
+//    default:
+//        break;
+//    }
+
+//    return str;
+//}
 
 RpcChannelImpl::RpcChannelImpl()
 //    : loop_(loop)
@@ -18,9 +67,11 @@ RpcChannelImpl::RpcChannelImpl()
 
 RpcChannelImpl::~RpcChannelImpl()
 {
+    LOG_TRACE("RpcChannelImpl destructing");
     for (const auto& item : outstandings_)
     {
         OutstandingCall out = item.second;
+        delete out.ctrl;
         delete out.response;
         delete out.done;
     }
@@ -36,11 +87,12 @@ void RpcChannelImpl::set_services(std::unordered_map<std::string, ::google::prot
     services_ = services;
 }
 
+// client send request(prepare response object)
 void RpcChannelImpl::CallMethod(const ::google::protobuf::MethodDescriptor* method,
-              ::google::protobuf::RpcController* controller,
-              const ::google::protobuf::Message* request,
-              ::google::protobuf::Message* response,
-              ::google::protobuf::Closure* done)
+              google::protobuf::RpcController* controller,
+              const google::protobuf::Message* request,
+              google::protobuf::Message* response,
+              google::protobuf::Closure* done)
 {
     // packed request
     RpcMessage message;
@@ -51,7 +103,8 @@ void RpcChannelImpl::CallMethod(const ::google::protobuf::MethodDescriptor* meth
     message.set_method(method->name());
     message.set_request(request->SerializeAsString());
 
-    OutstandingCall out = { response, done };
+    // save request associated info
+    OutstandingCall out = { controller, response, done };
     outstandings_[id] = out;
 
     // send request
@@ -60,6 +113,7 @@ void RpcChannelImpl::CallMethod(const ::google::protobuf::MethodDescriptor* meth
 
 void RpcChannelImpl::process(netlib::Buffer* buffer, size_t len)
 {
+    // process rpc meta message
     const google::protobuf::Descriptor* descriptor = google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName("RpcMessage");
     const google::protobuf::Message* prototype = google::protobuf::MessageFactory::generated_factory()->GetPrototype(descriptor);
 
@@ -70,7 +124,7 @@ void RpcChannelImpl::process(netlib::Buffer* buffer, size_t len)
     //ErrorCode errorCode = parse(buf->peek()+kHeaderLen, len, message.get());
     if (errorCode == NO_ERROR)
     {
-        // FIXME: try { } catch (...) { }
+        // process rpc message
         process_message(msg);
         buffer->has_readall();
     }
@@ -84,14 +138,14 @@ void RpcChannelImpl::process(netlib::Buffer* buffer, size_t len)
 void RpcChannelImpl::process_message(const RpcMessagePtr& messagePtr)
 {
     RpcMessage& message = *messagePtr;
-    if (message.type() == RESPONSE)
+    if (message.type() == RESPONSE) // client recv response
     {
         int64_t id = message.id();
         //assert(message.has_response() || message.has_error());
 
         //::google::protobuf::Message* response = nullptr;
         //::google::protobuf::Closure* done = nullptr;
-        OutstandingCall out = { nullptr, nullptr };
+        OutstandingCall out = { nullptr, nullptr, nullptr };
         {
             auto it = outstandings_.find(id);
             if (it != outstandings_.end())
@@ -106,11 +160,27 @@ void RpcChannelImpl::process_message(const RpcMessagePtr& messagePtr)
             std::unique_ptr<google::protobuf::Message> d(out.response);
             if (message.has_response())
                 out.response->ParseFromString(message.response());
+
+            std::unique_ptr<google::protobuf::RpcController> ctrl;
+            if (nullptr != out.ctrl && message.has_error())
+            {
+                //RpcController* ctrl = dynamic_cast<RpcMessage*>(out.ctrl);
+                ctrl.reset(out.ctrl);
+
+                auto it = _CodeError.find(static_cast<int>(message.error()));
+                if (it != _CodeError.end())
+                    ctrl->SetFailed(it->second);
+            }
+
+            // invoke response callback
             if (nullptr != out.done)
                 out.done->Run();
+
+            //no need call Reset because resoure is released
+            //ctrl->Reset();
         }
     }
-    else if (message.type() == REQUEST)
+    else if (message.type() == REQUEST) // server recv request
     {
         // FIXME: extract to a function
         ErrorCode error = NO_ERROR;
@@ -128,10 +198,15 @@ void RpcChannelImpl::process_message(const RpcMessagePtr& messagePtr)
                     std::unique_ptr<google::protobuf::Message> request(service->GetRequestPrototype(method).New());
                     if (request->ParseFromString(message.request()))
                     {
-                        google::protobuf::Message* response = service->GetResponsePrototype(method).New();
                         // response is deleted in doneCallback
+                        google::protobuf::Message* response = service->GetResponsePrototype(method).New();
                         int64_t id = message.id();
-                        auto done = google::protobuf::NewCallback(this, &RpcChannelImpl::on_done, response, id);
+
+                        RpcController* ctrl = new RpcController;
+                        OutstandingCall out = { ctrl, response, nullptr };
+                        auto done = google::protobuf::NewCallback(this, &RpcChannelImpl::on_done, out, id);
+
+                        // call the user define rpc method
                         service->CallMethod(method, NULL, request.get(), response, done);
                         error = NO_ERROR;
                     }
@@ -172,14 +247,21 @@ void RpcChannelImpl::process_message(const RpcMessagePtr& messagePtr)
     }
 }
 
-void RpcChannelImpl::on_done(::google::protobuf::Message* response, int64_t id)
+// this callback is for server side after user define method invoke
+void RpcChannelImpl::on_done(OutstandingCall out, int64_t id)
 {
-    std::unique_ptr<google::protobuf::Message> d(response);
+    std::unique_ptr<google::protobuf::Message> d(out.response);
     RpcMessage message;
     message.set_type(RESPONSE);
     message.set_id(id);
+
+    // out.ctrl has method exec result
+    std::unique_ptr<google::protobuf::RpcController> c(out.ctrl);
+//    if (out.ctrl->Failed())
+//        message.set_error(NO_ERROR);
+//    else
     message.set_error(NO_ERROR);
-    message.set_response(response->SerializeAsString()); // FIXME: error check
+    message.set_response(out.response->SerializeAsString()); // FIXME: error check
     
     // send response
     pack_send(&message);

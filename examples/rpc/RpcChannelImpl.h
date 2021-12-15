@@ -11,6 +11,29 @@
 #include <utility>
 
 
+
+class RpcController : public google::protobuf::RpcController
+{
+public:
+    RpcController();
+    ~RpcController();
+
+    // ----- client side------
+    virtual void Reset() { error_.clear(); }
+    virtual bool Failed() const { return !error_.empty(); }
+    virtual std::string ErrorText() const { return error_; };
+    virtual void StartCancel() {}
+
+    // ----- server side------
+    virtual void SetFailed(const std::string& reason) { error_ = reason; }
+    virtual bool IsCanceled() const { return false; }
+    virtual void NotifyOnCancel(google::protobuf::Closure* callback) {}
+
+private:
+    std::string error_;
+};
+
+
 class RpcMessage;
 typedef std::shared_ptr<RpcMessage> RpcMessagePtr;
 
@@ -35,14 +58,16 @@ public:
     void process_message(const RpcMessagePtr& messagePtr);
 
 private:
-    void on_done(::google::protobuf::Message* response, int64_t id);
-    void pack_send(RpcMessage* msg);
-
     struct OutstandingCall
     {
-        ::google::protobuf::Message* response;
-        ::google::protobuf::Closure* done;
+        google::protobuf::RpcController* ctrl;
+        google::protobuf::Message* response;
+        google::protobuf::Closure* done;
     };
+
+    void on_done(OutstandingCall out, int64_t id);
+    void pack_send(RpcMessage* msg);
+
     std::unordered_map<int64_t, OutstandingCall> outstandings_;
 
     std::atomic<int64_t> id_;

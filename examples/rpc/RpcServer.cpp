@@ -10,8 +10,7 @@
 
 
 RpcServer::RpcServer(netlib::EventLoop* loop)
-    : loop_(loop)
-    , server_(loop, "RpcServer")
+    : server_(loop, "RpcServer")
 {
     server_.set_connection_callback(std::bind(&RpcServer::on_connection, 
             this, std::placeholders::_1));
