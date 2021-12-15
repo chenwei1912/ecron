@@ -11,8 +11,7 @@ class MyClient
 {
 public:
     explicit MyClient(netlib::EventLoop* loop)
-        : loop_(loop)
-        , client_(loop, "MyClient")
+        : client_(loop, "MyClient")
     {
         client_.set_connection_callback(std::bind(&MyClient::on_connection, 
                 this, std::placeholders::_1));
@@ -33,7 +32,6 @@ private:
     void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
     void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
 
-    netlib::EventLoop* loop_;
     netlib::TcpClient client_;
 };
 

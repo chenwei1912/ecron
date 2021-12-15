@@ -8,8 +8,7 @@
 
 
 HttpServer::HttpServer(netlib::EventLoop* loop)
-    : loop_(loop)
-    , server_(loop, "HttpServer")
+    : server_(loop, "HttpServer")
 {
     server_.set_connection_callback(std::bind(&HttpServer::on_connection, 
             this, std::placeholders::_1));

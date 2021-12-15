@@ -21,9 +21,8 @@ private:
     void on_connection(const netlib::TcpConnectionPtr& conn);
     void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
     void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
-    
 
-    netlib::EventLoop* loop_;
+
     netlib::TcpServer server_;
 
     // task thread pool
