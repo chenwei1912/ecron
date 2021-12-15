@@ -1,0 +1,30 @@
+
+enum MessageType
+{
+	REQUEST = 0;
+	RESPONSE = 1;
+	ERROR = 2; // not used
+}
+
+enum ErrorCode
+{
+	NO_ERROR = 0;
+	NO_SERVICE = 1;
+	NO_METHOD = 2;
+	INVALID_REQUEST = 3;
+	INVALID_RESPONSE = 4;
+	TIMEOUT = 5;
+}
+
+message RpcMessage
+{
+	required MessageType type = 1;
+	required uint64 id = 2;
+
+	optional string service = 3;
+	optional string method = 4;
+	optional ErrorCode error = 5;
+
+	optional bytes request = 6;
+	optional bytes response = 7;
+}
