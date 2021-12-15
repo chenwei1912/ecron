@@ -71,6 +71,8 @@ TimerId TimingWheel::add_timer(size_t interval, TimerCallback task, bool repeat)
     //std::shared_ptr<TimerSession> sp(MEMORYPOOL.MallocTimer(),
     //                            std::bind(&MemoryPool::FreeTask, &MEMORYPOOL,
     //                            std::placeholders::_1));
+    if (0 == interval || !task)
+        return TimerId();
 
     Timer* timer = new Timer(interval, task, repeat); // std::move(task)
     loop_->dispatch(std::bind(&TimingWheel::add_timer_loop, this, timer));
@@ -79,6 +81,9 @@ TimerId TimingWheel::add_timer(size_t interval, TimerCallback task, bool repeat)
 
 void TimingWheel::del_timer(TimerId tid)
 {
+    if (nullptr == tid.timer_)
+        return;
+
     loop_->dispatch(std::bind(&TimingWheel::del_timer_loop, this, tid));
 }
 

@@ -13,3 +13,4 @@ target_link_libraries(client netlib pthread)
 
 
 add_subdirectory(http)
+add_subdirectory(rpc)
