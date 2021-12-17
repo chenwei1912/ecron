@@ -59,7 +59,6 @@ private:
 
     std::unique_ptr<TimingWheel> tw_;
 
-	//std::unique_ptr<LoggerImpl> impl_;
 };
 
 }// namespace netlib

@@ -36,8 +36,8 @@ bool HttpServer::start(const char* strip, unsigned short port)
     }
 
     // workers
-    ret = workers_.start(1, 100000);
-    if (!ret) {
+    if (0 != workers_.start(1, 100000))
+    {
         LOG_ERROR("HttpServer start worker threads failed!");
         return false;
     }

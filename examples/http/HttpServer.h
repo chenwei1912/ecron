@@ -5,7 +5,7 @@
 #include "EventLoop.h"
 #include "TcpServer.h"
 
-#include "ThreadPool.hpp"
+#include "ThreadPool.h"
 
 
 class HttpServer
@@ -26,7 +26,7 @@ private:
     netlib::TcpServer server_;
 
     // task thread pool
-    ThreadPool workers_;
+    netlib::ThreadPool workers_;
 };
 
 #endif // _HTTP_SERVER_H_
