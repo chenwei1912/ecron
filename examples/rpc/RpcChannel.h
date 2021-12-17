@@ -1,5 +1,5 @@
-#ifndef _RPC_CHANNELIMPL_H_
-#define _RPC_CHANNELIMPL_H_
+#ifndef _RPC_CHANNEL_H_
+#define _RPC_CHANNEL_H_
 
 
 #include "TcpConnection.h"
@@ -11,39 +11,16 @@
 #include <utility>
 
 
-
-class RpcController : public google::protobuf::RpcController
-{
-public:
-    RpcController();
-    ~RpcController();
-
-    // ----- client side------
-    virtual void Reset() { error_.clear(); }
-    virtual bool Failed() const { return !error_.empty(); }
-    virtual std::string ErrorText() const { return error_; };
-    virtual void StartCancel() {}
-
-    // ----- server side------
-    virtual void SetFailed(const std::string& reason) { error_ = reason; }
-    virtual bool IsCanceled() const { return false; }
-    virtual void NotifyOnCancel(google::protobuf::Closure* callback) {}
-
-private:
-    std::string error_;
-};
-
-
 class RpcMessage;
 typedef std::shared_ptr<RpcMessage> RpcMessagePtr;
 
 //typedef std::pair<::google::protobuf::Message*, ::google::protobuf::Closure*> OutstandingCall;
 
-class RpcChannelImpl : public ::google::protobuf::RpcChannel
+class RpcChannel : public ::google::protobuf::RpcChannel
 {
 public:
-    RpcChannelImpl();
-    ~RpcChannelImpl();
+    RpcChannel();
+    ~RpcChannel();
 
     void set_conn(const netlib::TcpConnectionPtr& conn);
     void set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services);
@@ -58,17 +35,18 @@ public:
     void process_message(const RpcMessagePtr& messagePtr);
 
 private:
-    struct OutstandingCall
+    struct OutstandingData
     {
         google::protobuf::RpcController* ctrl;
         google::protobuf::Message* response;
         google::protobuf::Closure* done;
     };
 
-    void on_done(OutstandingCall out, int64_t id);
+    void on_done(OutstandingData out, int64_t id);
+    void send_resp(int64_t id, int code, google::protobuf::Message* resp);
     void pack_send(RpcMessage* msg);
 
-    std::unordered_map<int64_t, OutstandingCall> outstandings_;
+    std::unordered_map<int64_t, OutstandingData> outstandings_;
 
     std::atomic<int64_t> id_;
     netlib::TcpConnectionPtr conn_;
@@ -76,6 +54,6 @@ private:
     std::unordered_map<std::string, ::google::protobuf::Service*>* services_;
 };
 
-typedef std::shared_ptr<RpcChannelImpl> RpcChannelImplPtr;
+typedef std::shared_ptr<RpcChannel> RpcChannelPtr;
 
-#endif // _RPC_CHANNELIMPL_H_
+#endif // _RPC_CHANNEL_H_

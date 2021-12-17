@@ -3,7 +3,7 @@
 #include "Logger.h"
 //#include "SqlConnPool.h"
 
-#include "RpcChannelImpl.h"
+#include "RpcChannel.h"
 
 #include "google/protobuf/descriptor.h"
 
@@ -58,7 +58,7 @@ void RpcServer::register_service(::google::protobuf::Service* service)
 void RpcServer::on_connection(const netlib::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
-        RpcChannelImplPtr channel = std::make_shared<RpcChannelImpl>();
+        RpcChannelPtr channel = std::make_shared<RpcChannel>();
         channel->set_conn(conn);
         channel->set_services(&services_);
         conn->set_context(channel);
@@ -72,7 +72,7 @@ void RpcServer::on_connection(const netlib::TcpConnectionPtr& conn)
 
 void RpcServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
 {
-    RpcChannelImplPtr channel = boost::any_cast<RpcChannelImplPtr>(conn->get_context());
+    RpcChannelPtr channel = boost::any_cast<RpcChannelPtr>(conn->get_context());
     channel->process(buffer, len);
 }
 
