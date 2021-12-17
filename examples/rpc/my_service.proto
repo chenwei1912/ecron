@@ -1,25 +1,25 @@
-syntax="proto2";
-//package example;
+syntax = "proto3";
+//package netlib.rpc;
 
 option cc_generic_services = true;
 
 //import "common.proto";
 
 message EchoRequest {
-	required string message = 1;
+	string message = 1;
 }
 
 message EchoResponse {
-	required string message = 1;
+	string message = 1;
 }
 
 message AddRequest {
-	required int32 a = 1;
-	required int32 b = 2;
+	int32 a = 1;
+	int32 b = 2;
 }
 
 message AddResponse {
-	required int32 result = 1;
+	int32 result = 1;
 }
 
 service EchoService {

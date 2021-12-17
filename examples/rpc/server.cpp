@@ -23,9 +23,9 @@ public:
 
         // fill RpcController result
         //if (nullptr != controller)
-            //controller->error_code_ = 0;
-        
-        done->Run();
+            //controller->SetFailed("xxx");
+        if (nullptr != done)
+            done->Run();
     }
 
     virtual void Add(::google::protobuf::RpcController* controller,
@@ -42,9 +42,10 @@ public:
 
         // fill RpcController result
         //if (nullptr != controller)
-            //controller->error_code_ = 0;
+            //controller->SetFailed("xxx");
 
-        done->Run();
+        if (nullptr != done)
+            done->Run();
     }
 };
 
@@ -83,6 +84,7 @@ int main(int argc, char* argv[])
 
     // never run
     netlib::LOGGER.release();
+    google::protobuf::ShutdownProtobufLibrary();
     std::cout << "main exit." << std::endl;
     return 0;
 }

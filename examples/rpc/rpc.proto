@@ -1,3 +1,5 @@
+syntax = "proto3";
+//package netlib.rpc;
 
 enum MessageType
 {
@@ -18,13 +20,13 @@ enum ErrorCode
 
 message RpcMessage
 {
-	required MessageType type = 1;
-	required uint64 id = 2;
+	MessageType type = 1;
+	uint64 id = 2;
 
-	optional string service = 3;
-	optional string method = 4;
-	optional ErrorCode error = 5;
+	string service = 3;
+	string method = 4;
+	ErrorCode error = 5;
 
-	optional bytes request = 6;
-	optional bytes response = 7;
+	bytes request = 6;
+	bytes response = 7;
 }
