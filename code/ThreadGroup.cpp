@@ -41,6 +41,20 @@ int ThreadWorker::stop()
     return 0;
 }
 
+bool ThreadWorker::push(const Task& task)
+{
+//    if (thread_.get_id() == std::thread::id())
+//        return false;
+    return queue_.push(task);
+}
+
+// raw parameter for std::bind
+//template<typename F, typename... Args>
+//bool push(F&& f, Args&&... args)
+//{
+//    return queue_.push(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+//}
+    
 void ThreadWorker::run()
 {
     while (true)

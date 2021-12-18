@@ -24,8 +24,8 @@ public:
         //clear(); // thread safe?
 	}
 
-//	block_queue(const block_queue&) = delete;
-//	block_queue& operator=(const block_queue&) = delete;
+	block_queue(const block_queue&) = delete;
+	block_queue& operator=(const block_queue&) = delete;
 
 //	block_queue(block_queue&&) = default;
 //    block_queue& operator=(block_queue&&) = default;
@@ -52,8 +52,9 @@ public:
 	
 	bool pop(T& item) {
 	    std::unique_lock<std::mutex> lock(mutex_);
-	    while (queue_.empty() && !exit_)
-	        cond_.wait(lock);
+	    //while (queue_.empty() && !exit_)
+	    //    cond_.wait(lock);
+	    cond_.wait(lock, [this](){ return (!queue_.empty() || exit_); });
 
 	    if (exit_)
 	        return false;

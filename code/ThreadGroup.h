@@ -17,6 +17,8 @@ namespace netlib
 class ThreadWorker
 {
 public:
+    using Task = std::function<void()>;
+
     explicit ThreadWorker(size_t max_task);
     ~ThreadWorker();
 
@@ -28,17 +30,12 @@ public:
 
     //int start();
     int stop();
-
-    template<typename F, typename... Args>
-    bool push(F&& f, Args&&... args)
-    {
-        return queue_.push(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-    }
+    bool push(const Task& task);
 
 private:
     void run();
 
-    block_queue<std::function<void()>> queue_;
+    block_queue<Task> queue_;
     std::thread thread_;
 
 };

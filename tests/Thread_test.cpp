@@ -44,7 +44,7 @@ TEST_CASE("ThreadPool test case", "[ThreadPool]") {
     REQUIRE(0 == ret);
 
     for (int i = 0; i < 8; ++i) {
-        pool.append(myadd, i, i + 1);
+        pool.append(std::bind(myadd, i, i + 1));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -63,7 +63,7 @@ TEST_CASE("ThreadGroup test case", "[ThreadGroup]") {
     for (int i = 0; i < 8; ++i) {
         netlib::ThreadWorker* worker = group.get_worker();
         std::cout << "worker value : " << worker << std::endl;
-        worker->push(myadd, i, i + 1);
+        worker->push(std::bind(myadd, i, i + 1));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));

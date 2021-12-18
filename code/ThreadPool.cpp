@@ -22,7 +22,7 @@ ThreadPool::~ThreadPool()
 
 int ThreadPool::start(size_t thread_num, size_t max_task, bool grow)
 {
-    if (thread_num < 1 || max_task < 1 || running_)
+    if (thread_num < 1 || running_)
         return -1;
 
     max_task_ = max_task;
@@ -43,18 +43,61 @@ int ThreadPool::stop()
         cond_.notify_all();
     }
 
-    for (auto& thd : threads_)
-        thd.join();
-
+    for (auto& item : threads_)
+    {
+        if (item.joinable()) // item.get_id() != std::thread::id()
+            item.join();
+    }
     threads_.clear();
+
     return 0;
 }
 
+bool ThreadPool::append(const Task& task)
+{
+    if (!running_)
+        return false;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (max_task_ > 0 && tasks_.size() >= max_task_)
+        return false;
+
+    tasks_.push(task);
+
+    if (grow_ && idle_count_ < 1)
+        add_thread(1);
+    
+    cond_.notify_one();
+    return true;
+}
+
+// raw parameter for std::bind
+/*template<typename F, typename... Args>
+bool append(F&& f, Args&&... args)
+{
+    if (!running_)
+        return false;
+
+    //auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (tasks_.size() >= max_task_)
+        return false;
+
+    tasks_.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+
+    if (idle_count_ < 1 && grow_)
+        add_thread(1);
+    
+    cond_.notify_one();
+    return true;
+}*/
+    
 void ThreadPool::run()
 {
     while (true)
     {
-        std::function<void()> task;
+        Task task;
         {
     	    std::unique_lock<std::mutex> lock(mutex_);
     	    //while (tasks_.empty() && running_)
@@ -71,7 +114,7 @@ void ThreadPool::run()
         if (task)
         {
             idle_count_--;
-            task(); // run task
+            task();
             idle_count_++;
         }
     }
