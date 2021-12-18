@@ -10,6 +10,8 @@
 #include <functional>
 #include <atomic>
 
+#include "block_queue.hpp"
+
 
 namespace netlib
 {
@@ -38,14 +40,11 @@ private:
 
     std::vector<std::thread> threads_;
     block_queue<Task> tasks_;
-//    std::queue<Task> tasks_;
-//    std::mutex mutex_;
-//    std::condition_variable cond_;
-//    std::atomic_bool running_;
-    std::atomic_int idle_count_;
+    //std::atomic_bool running_;
 
     //size_t max_thread_; // max thread number
     size_t max_task_; // max task number in queue
+    std::atomic_int idle_count_;
     bool grow_;
 };
 

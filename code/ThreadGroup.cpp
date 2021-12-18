@@ -5,9 +5,9 @@ using namespace netlib;
 
 
 ThreadWorker::ThreadWorker(size_t max_task)
-    : queue_(max_task)
-    , thread_(std::bind(&ThreadWorker::run, this))
+    : thread_(std::bind(&ThreadWorker::run, this))
 {
+    tasks_.init(max_task);
 }
 
 ThreadWorker::~ThreadWorker()
@@ -15,7 +15,7 @@ ThreadWorker::~ThreadWorker()
     stop();
 }
 
-//int ThreadWorker::start()
+//int ThreadWorker::start(size_t max_task)
 //{
 //    try
 //    {
@@ -26,7 +26,7 @@ ThreadWorker::~ThreadWorker()
 //        // log
 //        return -1;
 //    }
-
+//    queue_.init(max_task);
 //    return 0;
 //}
 
@@ -35,8 +35,7 @@ int ThreadWorker::stop()
     if (thread_.get_id() == std::thread::id())
         return -1;
 
-    // joinable
-    queue_.notify_exit();
+    tasks_.notify_exit();
     thread_.join();
     return 0;
 }
@@ -45,7 +44,7 @@ bool ThreadWorker::push(const Task& task)
 {
 //    if (thread_.get_id() == std::thread::id())
 //        return false;
-    return queue_.push(task);
+    return tasks_.push(task);
 }
 
 // raw parameter for std::bind
@@ -54,13 +53,13 @@ bool ThreadWorker::push(const Task& task)
 //{
 //    return queue_.push(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 //}
-    
+
 void ThreadWorker::run()
 {
     while (true)
     {
         std::function<void()> task;
-        if (!queue_.pop(task))
+        if (!tasks_.pop(task))
             break;
 
         if (task)

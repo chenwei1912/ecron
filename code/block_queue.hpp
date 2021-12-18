@@ -14,10 +14,9 @@ template<typename T>
 class block_queue
 {
 public:
-	explicit block_queue(size_t max_count = 100000)
-	            : max_count_(max_count)
-	            , exit_(false) {
-        // check max_count?
+	block_queue()
+        : max_count_(0)
+        , exit_(false) {
 	}
 
 	~block_queue() {
@@ -29,6 +28,14 @@ public:
 
 //	block_queue(block_queue&&) = default;
 //    block_queue& operator=(block_queue&&) = default;
+
+    // not thread safe
+    bool init(size_t max_count = 0) {
+        max_count_ = max_count;
+        exit_ = false;
+        queue_.clear();
+        return true;
+    }
 
 	bool push(const T& item) {
 	    std::lock_guard<std::mutex> lock(mutex_);
@@ -59,7 +66,7 @@ public:
 	    if (exit_)
 	        return false;
 
-        item = queue_.front(); // move?
+        item = std::move(queue_.front());
         queue_.pop_front();
         return true;
 	}
@@ -112,20 +119,16 @@ public:
         return queue_.size();
 	}
 
+//	void clear() {
+//        std::lock_guard<std::mutex> lock(mutex_);
+//        queue_.clear();
+//	}
+
 	void notify_exit() {
         std::lock_guard<std::mutex> lock(mutex_);
         exit_ = true;
         cond_.notify_all();
 	}
-
-//	size_t max_size() {
-//        return max_count_;
-//	}
-
-//	void clear() {
-//        std::lock_guard<std::mutex> lock(mutex_);
-//        queue_.clear();
-//	}
 
 
 private:

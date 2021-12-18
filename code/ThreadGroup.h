@@ -6,7 +6,6 @@
 #include <vector>
 #include <mutex>
 #include <functional>
-#include <atomic>
 
 #include "block_queue.hpp"
 
@@ -35,7 +34,7 @@ public:
 private:
     void run();
 
-    block_queue<Task> queue_;
+    block_queue<Task> tasks_;
     std::thread thread_;
 
 };
@@ -52,7 +51,7 @@ public:
 
 	// move copy and assignment?
 
-    int start(size_t thread_num, size_t max_task);
+    int start(size_t thread_num, size_t max_task = 0);
     int stop();
 
     // thread safe

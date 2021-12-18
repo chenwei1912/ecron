@@ -8,9 +8,8 @@ using namespace netlib;
 
 
 ThreadPool::ThreadPool()
-    : running_(false)
+    : max_task_(0)
     , idle_count_(0)
-    , max_task_(0)
     , grow_(false)
 {
 }
@@ -22,53 +21,40 @@ ThreadPool::~ThreadPool()
 
 int ThreadPool::start(size_t thread_num, size_t max_task, bool grow)
 {
-    if (thread_num < 1 || running_)
+    if (thread_num < 1 || !threads_.empty())
         return -1;
 
-    max_task_ = max_task;
-    grow_ = grow;
-    running_ = true;
-    add_thread(thread_num);
-    return 0;
+    //max_task_ = max_task;
+    tasks_.init(max_task);
+
+    //idle_count_ = 0;
+    //grow_ = grow;
+    return add_thread(thread_num);
 }
 
 int ThreadPool::stop()
 {
-    if (!running_)
+    if (threads_.empty())
         return -1;
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        running_ = false;
-        cond_.notify_all();
-    }
-
+    tasks_.notify_exit();
     for (auto& item : threads_)
     {
         if (item.joinable()) // item.get_id() != std::thread::id()
             item.join();
     }
     threads_.clear();
-
     return 0;
 }
 
 bool ThreadPool::append(const Task& task)
 {
-    if (!running_)
-        return false;
+//    if (threads_.empty())
+//        return false;
+//    if (grow_ && idle_count_ < 1)
+//        add_thread(1);
 
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (max_task_ > 0 && tasks_.size() >= max_task_)
-        return false;
-
-    tasks_.push(task);
-
-    if (grow_ && idle_count_ < 1)
-        add_thread(1);
-    
-    cond_.notify_one();
-    return true;
+    return tasks_.push(task);
 }
 
 // raw parameter for std::bind
@@ -98,24 +84,14 @@ void ThreadPool::run()
     while (true)
     {
         Task task;
-        {
-    	    std::unique_lock<std::mutex> lock(mutex_);
-    	    //while (tasks_.empty() && running_)
-    	    //    cond_.wait(lock);
-    	    cond_.wait(lock, [this](){ return (!tasks_.empty() || !running_); });
-
-            if (!running_) // not exec remain tasks
-                break;
-
-            task = std::move(tasks_.front());
-            tasks_.pop();
-        }
+        if (!tasks_.pop(task))
+            break;
 
         if (task)
         {
-            idle_count_--;
+            //idle_count_--; // and perf timing
             task();
-            idle_count_++;
+            //idle_count_++; // and perf timing
         }
     }
 }
@@ -125,7 +101,7 @@ int ThreadPool::add_thread(size_t num)
     for (size_t i = 0; i < num; ++i)
     {
         threads_.emplace_back(std::bind(&ThreadPool::run, this));
-        idle_count_++;
+        //idle_count_++;
     }
     return 0;
 }
