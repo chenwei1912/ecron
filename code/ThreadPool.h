@@ -10,6 +10,8 @@
 #include <functional>
 #include <atomic>
 
+#include "block_queue.hpp"
+
 
 namespace netlib
 {
@@ -17,6 +19,8 @@ namespace netlib
 class ThreadPool
 {
 public:
+    using Task = std::function<void()>;
+
     ThreadPool();
     ~ThreadPool();
 
@@ -25,47 +29,22 @@ public:
 
 	// move disable?
 
-    int start(size_t thread_num, size_t max_task, bool grow = false);
+    int start(size_t thread_num, size_t max_task = 0, bool grow = false);
     int stop();
 
-    template<typename F, typename... Args>
-    bool append(F&& f, Args&&... args)
-    {
-        if (!running_)
-            return false;
-
-        //auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-
-        //{
-	    std::lock_guard<std::mutex> lock(mutex_);
-	    if (tasks_.size() >= max_task_)
-	        return false;
-
-	    tasks_.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-
-	    if (idle_count_ < 1 && grow_)
-	        add_thread(1);
-	    
-	    cond_.notify_one();
-	    //}
-
-        return true;
-    }
-
+    bool append(const Task& task);
 
 private:
     void run();
     int add_thread(size_t num);
 
     std::vector<std::thread> threads_;
-    std::queue<std::function<void()>> tasks_;
-    std::mutex mutex_;
-    std::condition_variable cond_;
-    std::atomic_bool running_;
-    std::atomic_int idle_count_;
+    block_queue<Task> tasks_;
+    //std::atomic_bool running_;
 
     //size_t max_thread_; // max thread number
     size_t max_task_; // max task number in queue
+    std::atomic_int idle_count_;
     bool grow_;
 };
 

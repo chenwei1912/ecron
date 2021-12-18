@@ -6,7 +6,6 @@
 #include <vector>
 #include <mutex>
 #include <functional>
-#include <atomic>
 
 #include "block_queue.hpp"
 
@@ -17,6 +16,8 @@ namespace netlib
 class ThreadWorker
 {
 public:
+    using Task = std::function<void()>;
+
     explicit ThreadWorker(size_t max_task);
     ~ThreadWorker();
 
@@ -28,17 +29,12 @@ public:
 
     //int start();
     int stop();
-
-    template<typename F, typename... Args>
-    bool push(F&& f, Args&&... args)
-    {
-        return queue_.push(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-    }
+    bool push(const Task& task);
 
 private:
     void run();
 
-    block_queue<std::function<void()>> queue_;
+    block_queue<Task> tasks_;
     std::thread thread_;
 
 };
@@ -55,7 +51,7 @@ public:
 
 	// move copy and assignment?
 
-    int start(size_t thread_num, size_t max_task);
+    int start(size_t thread_num, size_t max_task = 0);
     int stop();
 
     // thread safe
