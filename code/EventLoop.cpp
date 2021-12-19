@@ -13,6 +13,7 @@ EventLoop::EventLoop()
     , stop_(false)
     //, thread_(std::this_thread::get_id())
     , tw_(new TimingWheel(this))
+    , signals_(io_context_)
 {
 }
 
@@ -38,12 +39,11 @@ void EventLoop::loop()
     LOG_TRACE("EventLoop {} stop looping", static_cast<void*>(this));
 }
 
-void EventLoop::stop()
+void EventLoop::quit()
 {
     //stop_ = true;
-    if (!io_context_.stopped())
-        dispatch(std::bind(&EventLoop::stop_loop, this));
-        //post(std::bind(&boost::asio::io_context::stop, &io_context_));
+    dispatch(std::bind(&EventLoop::quit_loop, this));
+    //post(std::bind(&boost::asio::io_context::stop, &io_context_));
 }
 
 void EventLoop::post(std::function<void()> f)
@@ -70,14 +70,62 @@ void EventLoop::del_timer(TimerId tid)
     tw_->del_timer(tid);
 }
 
+void EventLoop::set_signal_handle(SignalCallback cb)
+{
+    dispatch(std::bind(&EventLoop::set_signal_handle_loop, this, cb));
+}
+
+void EventLoop::add_signal(int signal_num)
+{
+    dispatch(std::bind(&EventLoop::add_signal_loop, this, signal_num));
+}
+
+void EventLoop::remove_signal(int signal_num)
+{
+    dispatch(std::bind(&EventLoop::remove_signal_loop, this, signal_num));
+}
+
 //bool EventLoop::in_loopthread()
 //{
 //    return (thread_ == std::this_thread::get_id());
 //}
 
-void EventLoop::stop_loop()
+void EventLoop::quit_loop()
 {
     //guard_.reset();
-    io_context_.stop();
+    if (!io_context_.stopped())
+        io_context_.stop();
 }
 
+void EventLoop::handle_signal(const boost::system::error_code& ec, int signal_number)
+{
+    if (ec)
+    {
+        //LOG_ERROR("EventLoop signal error: {}", ec.value());
+        return;
+    }
+
+    signals_.async_wait(std::bind(&EventLoop::handle_signal, this, 
+                        std::placeholders::_1, std::placeholders::_2));
+
+    if (cb_signale_)
+        cb_signale_(signal_number);
+}
+
+void EventLoop::set_signal_handle_loop(SignalCallback cb)
+{
+    signals_.cancel();
+    cb_signale_ = cb;
+    signals_.async_wait(std::bind(&EventLoop::handle_signal, this, 
+                        std::placeholders::_1, std::placeholders::_2));
+}
+
+void EventLoop::add_signal_loop(int signal_num)
+{
+    signals_.add(signal_num);
+}
+
+void EventLoop::remove_signal_loop(int signal_num)
+{
+    signals_.remove(signal_num);
+}

@@ -44,11 +44,6 @@ bool RpcServer::start(const char* strip, unsigned short port)
     return ret;
 }
 
-void RpcServer::on_idle()
-{
-    netlib::LOGGER.flush();
-}
-
 void RpcServer::register_service(::google::protobuf::Service* service)
 {
     const google::protobuf::ServiceDescriptor* desc = service->GetDescriptor();
@@ -73,7 +68,7 @@ void RpcServer::on_connection(const netlib::TcpConnectionPtr& conn)
 void RpcServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
 {
     RpcChannelPtr channel = boost::any_cast<RpcChannelPtr>(conn->get_context());
-    channel->process(buffer, len);
+    channel->on_recv(conn, buffer, len);
 }
 
 //void RpcServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
