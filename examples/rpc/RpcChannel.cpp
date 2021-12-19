@@ -46,7 +46,12 @@ RpcChannel::~RpcChannel()
 
 void RpcChannel::set_conn(const netlib::TcpConnectionPtr& conn)
 {
-    conn_ = conn;
+    conn_weak_ = conn;
+}
+
+void RpcChannel::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
+{
+    process(buffer, len);
 }
 
 void RpcChannel::set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services)
@@ -110,17 +115,19 @@ void RpcChannel::process(netlib::Buffer* buffer, size_t len)
         {
             //errorCallback_(conn, buf, receiveTime, errorCode);
             LOG_ERROR("RpcChannel decode data error");
-            conn_->close();
+            netlib::TcpConnectionPtr conn(conn_weak_.lock());
+            if (conn)
+                conn->close();
         }
     }
 }
 
-void RpcChannel::process_message(const RpcMessagePtr& messagePtr)
+void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
 {
-    RpcMessage& message = *messagePtr;
-    if (message.type() == RESPONSE) // client recv response
+    //RpcMessage& message = *messagePtr;
+    if (rpcmessage->type() == RESPONSE) // client recv response
     {
-        int64_t id = message.id();
+        int64_t id = rpcmessage->id();
         //assert(message.has_response() || message.has_error());
 
         //::google::protobuf::Message* response = nullptr;
@@ -139,7 +146,7 @@ void RpcChannel::process_message(const RpcMessagePtr& messagePtr)
         {
             std::unique_ptr<google::protobuf::Message> resp(out.response);
             //if (message.has_response())
-            out.response->ParseFromString(message.response());
+            out.response->ParseFromString(rpcmessage->response());
 
             std::unique_ptr<google::protobuf::RpcController> ctrl;
             if (nullptr != out.ctrl)
@@ -147,7 +154,7 @@ void RpcChannel::process_message(const RpcMessagePtr& messagePtr)
                 //RpcController* ctrl = dynamic_cast<RpcMessage*>(out.ctrl);
                 ctrl.reset(out.ctrl);
 
-                auto it = _CodeError.find(static_cast<int>(message.error()));
+                auto it = _CodeError.find(static_cast<int>(rpcmessage->error()));
                 if (it != _CodeError.end())
                     ctrl->SetFailed(it->second);
             }
@@ -158,27 +165,27 @@ void RpcChannel::process_message(const RpcMessagePtr& messagePtr)
 
         }
     }
-    else if (message.type() == REQUEST) // server recv request
+    else if (rpcmessage->type() == REQUEST) // server recv request
     {
         // FIXME: extract to a function
         ErrorCode error = NO_ERROR;
         if (nullptr != services_)
         {
-            auto it = services_->find(message.service());
+            auto it = services_->find(rpcmessage->service());
             if (it != services_->end())
             {
                 google::protobuf::Service* service = it->second;
                 //assert(service != NULL);
                 const google::protobuf::ServiceDescriptor* desc = service->GetDescriptor();
-                const google::protobuf::MethodDescriptor* method = desc->FindMethodByName(message.method());
+                const google::protobuf::MethodDescriptor* method = desc->FindMethodByName(rpcmessage->method());
                 if (nullptr != method)
                 {
                     std::unique_ptr<google::protobuf::Message> request(service->GetRequestPrototype(method).New());
-                    if (request->ParseFromString(message.request()))
+                    if (request->ParseFromString(rpcmessage->request()))
                     {
                         std::unique_ptr<google::protobuf::Message> response(service->GetResponsePrototype(method).New());
                         std::unique_ptr<google::protobuf::RpcController> ctrl(new RpcController);
-                        int64_t id = message.id();
+                        int64_t id = rpcmessage->id();
                         OutstandingData out = { ctrl.get(), response.get(), nullptr };
 
                         // in done->Run(), self delete
@@ -211,13 +218,15 @@ void RpcChannel::process_message(const RpcMessagePtr& messagePtr)
 
         if (error != NO_ERROR)
         {
-            send_resp(message.id(), error, nullptr);
+            send_resp(rpcmessage->id(), error, nullptr);
         }
     }
-    else if (message.type() == ERROR)
+    else if (rpcmessage->type() == ERROR)
     {
-        //log
-        conn_->close();
+        LOG_TRACE("message type error");
+        netlib::TcpConnectionPtr conn(conn_weak_.lock());
+        if (conn)
+            conn->close();
     }
 }
 
@@ -267,5 +276,7 @@ void RpcChannel::pack_send(RpcMessage* msg)
     }
     send_buffer->has_written(msg_len - _HeaderLen);
 
-    conn_->send(send_buffer);
+    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    if (conn)
+        conn->send(send_buffer);
 }

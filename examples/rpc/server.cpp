@@ -49,6 +49,11 @@ public:
     }
 };
 
+void on_idle()
+{
+    //std::cout << "idle do something." << std::endl;
+    netlib::LOGGER.flush();
+}
 
 int main(int argc, char* argv[])
 {
@@ -78,7 +83,24 @@ int main(int argc, char* argv[])
         return -2;
     }
 
-    loop.add_timer(3, std::bind(&RpcServer::on_idle, &server), true);
+    loop.set_signal_handle([&loop](int signal){
+        switch (signal)
+        {
+            case SIGINT:
+            case SIGTERM:
+                loop.quit();
+                break;
+            default:
+                break;
+        }
+    });
+    loop.add_signal(SIGINT);
+    //loop.remove_signal(SIGINT);
+
+    loop.add_timer(3, [&loop](){
+        //std::cout << "idle do something." << std::endl;
+        netlib::LOGGER.flush();
+    }, true);
 
     loop.loop();
 

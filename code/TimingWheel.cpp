@@ -128,7 +128,7 @@ void TimingWheel::handle_timeout(const boost::system::error_code& ec)
             if (timer->repeat_)
                 add_timer_loop(timer);
             else
-                delete timer;
+                delete timer; // FIXME!
 
             it = wheel_[cur_slot_].erase(it);
         }

@@ -16,25 +16,33 @@ typedef std::shared_ptr<RpcMessage> RpcMessagePtr;
 
 //typedef std::pair<::google::protobuf::Message*, ::google::protobuf::Closure*> OutstandingCall;
 
-class RpcChannel : public ::google::protobuf::RpcChannel
+class RpcChannel : public google::protobuf::RpcChannel
 {
 public:
     RpcChannel();
     ~RpcChannel();
 
+	RpcChannel(const RpcChannel&) = delete;
+	RpcChannel& operator=(const RpcChannel&) = delete;
+
+//	RpcChannel(RpcChannel&&) = default;
+//  RpcChannel& operator=(RpcChannel&&) = default;
+
+    // ----- both side------
     void set_conn(const netlib::TcpConnectionPtr& conn);
+    void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
+
+    // ----- server side------
     void set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services);
 
-    void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                  ::google::protobuf::RpcController* controller,
-                  const ::google::protobuf::Message* request,
-                  ::google::protobuf::Message* response,
-                  ::google::protobuf::Closure* done);
-
-    void process(netlib::Buffer* buffer, size_t len);
-    void process_message(const RpcMessagePtr& messagePtr);
-
+    // ----- client side------
+    void CallMethod(const google::protobuf::MethodDescriptor* method,
+                      google::protobuf::RpcController* controller,
+                      const ::google::protobuf::Message* request,
+                      google::protobuf::Message* response,
+                      google::protobuf::Closure* done);
 private:
+    // ----- both side------
     struct OutstandingData
     {
         google::protobuf::RpcController* ctrl;
@@ -42,16 +50,23 @@ private:
         google::protobuf::Closure* done;
     };
 
-    void on_done(OutstandingData out, int64_t id);
-    void send_resp(int64_t id, int code, google::protobuf::Message* resp);
+    void process(netlib::Buffer* buffer, size_t len);
+    void process_message(const RpcMessagePtr& rpcmessage);
     void pack_send(RpcMessage* msg);
 
+    //netlib::TcpConnectionPtr conn_;
+    std::weak_ptr<netlib::TcpConnection> conn_weak_;
     std::unordered_map<int64_t, OutstandingData> outstandings_;
 
-    std::atomic<int64_t> id_;
-    netlib::TcpConnectionPtr conn_;
-    //std::weak_ptr<netlib::TcpConnection> conn_weak_;
+    // ----- server side------
+    void on_done(OutstandingData out, int64_t id);
+    void send_resp(int64_t id, int code, google::protobuf::Message* resp);
+        
     std::unordered_map<std::string, ::google::protobuf::Service*>* services_;
+
+    // ----- client side------
+    std::atomic<int64_t> id_;
+
 };
 
 typedef std::shared_ptr<RpcChannel> RpcChannelPtr;

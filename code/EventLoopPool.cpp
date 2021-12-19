@@ -49,7 +49,7 @@ void EventLoopPool::start()
 void EventLoopPool::stop()
 {
     for (auto& item : loops_)
-        item->stop();
+        item->quit();
     for (auto& item : threads_)
         if (item.joinable())
             item.join();

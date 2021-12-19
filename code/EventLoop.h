@@ -20,6 +20,7 @@ namespace netlib
 {
 
 //using work_guard_type = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
+typedef std::function<void(int)> SignalCallback;
 
 class TimingWheel;
 
@@ -34,7 +35,7 @@ public:
     EventLoop& operator=(const EventLoop&) = delete;
 
     void loop();
-    void stop();
+    void quit();
 
     // task queue it and wait for io_context's execution.
     void post(std::function<void()> f);
@@ -46,10 +47,18 @@ public:
     TimerId add_timer(size_t interval, TimerCallback task, bool repeat = false);
     void del_timer(TimerId tid);
 
+    void set_signal_handle(SignalCallback cb);
+    void add_signal(int signal_num);
+    void remove_signal(int signal_num);
+
     inline boost::asio::io_context& get_context() { return io_context_; }
 
 private:
-    void stop_loop();
+    void quit_loop();
+    void handle_signal(const boost::system::error_code& ec, int signal_number);
+    void set_signal_handle_loop(SignalCallback cb);
+    void add_signal_loop(int signal_num);
+    void remove_signal_loop(int signal_num);
 
     boost::asio::io_context io_context_;
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> guard_;
@@ -58,6 +67,9 @@ private:
 	std::thread::id thread_;
 
     std::unique_ptr<TimingWheel> tw_;
+
+    boost::asio::signal_set signals_; // FIXME: wrapper
+    SignalCallback cb_signale_;
 
 };
 

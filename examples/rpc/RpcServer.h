@@ -17,7 +17,6 @@ public:
     ~RpcServer();
 
     bool start(const char* strip, unsigned short port);
-    void on_idle();
 
     void register_service(::google::protobuf::Service* service);
 
