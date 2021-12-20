@@ -70,33 +70,39 @@ void HttpConn::init(const netlib::TcpConnectionPtr& conn)
     conn_weak_ = conn;
     request_.init();
     response_.init();
+    is_body_ = false;
     file_ = nullptr;
 }
 
 bool HttpConn::parse(netlib::Buffer* buffer)
 {
-    bool ret = request_.parse(buffer->begin_read(), buffer->readable_bytes());
-    if (!ret) {
-        buffer->has_readed(buffer->readable_bytes());
-        response_.code_ = 400;
-        LOG_ERROR("parse http protocol error");
-    }
-    else
+    if (!request_.parse(buffer->begin_read(), buffer->readable_bytes()))
     {
-        buffer->has_readed(request_.count_parsed_);
-        if (request_.msgcomplete_) {
-            LOG_INFO("request parse OK! method: {}, url: {}", 
-                                        request_.http_method_, request_.http_url_);
-            response_.code_ = 200;
-            response_.path_ = request_.http_url_;
-        } else {
-            LOG_TRACE("request parsed {}, need more data", 
-                                        request_.count_parsed_);
-            return false;
-        }
+        //buffer->has_readed(buffer->readable_bytes());
+        LOG_ERROR("parse http protocol error");
+        response_.code_ = 400;
+        return false;
+    }
+
+    buffer->has_readed(request_.count_parsed_);
+    if (request_.msgcomplete_) {
+        LOG_INFO("request parse OK! method: {}, url: {}", 
+                                    request_.http_method_, request_.http_url_);
+
+    } else {
+        LOG_TRACE("request parsed {}, need more data", 
+                                    request_.count_parsed_);
     }
 
     return true;
+}
+
+void HttpConn::send_complete(const netlib::TcpConnectionPtr& conn)
+{
+    if (response_.keep_alive_)
+        init(conn);
+    else
+        conn->close();
 }
 
 void HttpConn::process()
@@ -104,69 +110,65 @@ void HttpConn::process()
     netlib::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
     {
+        // fixme: get current dir
+        std::string root_dir = "/home/shared/project/netlib/examples/http/resources";
+
+        response_.code_ = 200;
+        response_.path_ = request_.http_url_;
+
+        do_post();
+
+        if (200 == response_.code_) // parse success
+        {
+            if (response_.path_ == "/")
+                response_.path_ += "index";
+
+            // add file type for GET method
+            auto it = _Route.find(response_.path_);
+            if (it != _Route.end()) {
+                response_.path_ += ".html";
+            }
+
+            // check file exists(replace by c++17 filesystem)
+            response_.path_ = root_dir + response_.path_;
+            file_ = fopen(response_.path_.data(), "rb");
+            if (nullptr == file_)
+                response_.code_ = 404;
+            else
+            {
+                fseek(file_, 0, SEEK_END);
+                response_.content_len_ = ftell(file_);
+                fseek(file_, 0, SEEK_SET);
+
+                // 403 file access deny
+                
+                //fclose(pFile);
+            }
+        }
+
+          // set error html file
+    //    auto it = _ErrorCodePath.find(http_code_);
+    //    if (it != _ErrorCodePath.end()) {
+    //        http_path_ = it->second;
+    //    }
+
+        LOG_INFO("response - code: {}, path: {}, size: {}", response_.code_
+                    , response_.path_, response_.content_len_);
+
+        if (200 != response_.code_) {
+            //resp->init(http_code_, false, http_path_, 0);
+            response_.keep_alive_ = false;
+        }
+        else {
+            //resp->init(http_code_, request_.keep_alive_, http_path_, file_size);
+            response_.keep_alive_ = request_.keep_alive_;
+            is_body_ = true;
+        }
+
         netlib::BufferPtr send_buffer = std::make_shared<netlib::Buffer>();
-        //HttpResponse resp;
-        process_header(send_buffer.get());
+        response_.make_header(send_buffer.get());
         conn->send(send_buffer);
     }
-}
-
-void HttpConn::process_header(netlib::Buffer* buffer)
-{
-    // fixme: get current dir
-    std::string root_dir = "/home/shared/project/netlib/examples/http/resources";
-    //uint32_t file_size = 0;
-
-    do_post();
-
-    if (200 == response_.code_) // parse success
-    {
-        if (response_.path_ == "/")
-            response_.path_ += "index";
-
-        // add file type for GET method
-        auto it = _Route.find(response_.path_);
-        if (it != _Route.end()) {
-            response_.path_ += ".html";
-        }
-
-        // check file exists(replace by c++17 filesystem)
-        response_.path_ = root_dir + response_.path_;
-        file_ = fopen(response_.path_.data(), "rb");
-        if (nullptr == file_)
-            response_.code_ = 404;
-        else
-        {
-            fseek(file_, 0, SEEK_END);
-            response_.content_len_ = ftell(file_);
-            fseek(file_, 0, SEEK_SET);
-
-            // 403 file access deny
-            
-            //fclose(pFile);
-        }
-    }
-
-      // set error html file
-//    auto it = _ErrorCodePath.find(http_code_);
-//    if (it != _ErrorCodePath.end()) {
-//        http_path_ = it->second;
-//    }
-
-    LOG_INFO("response - code: {}, path: {}, size: {}", response_.code_
-                , response_.path_, response_.content_len_);
-
-    if (200 != response_.code_) {
-        //resp->init(http_code_, false, http_path_, 0);
-        response_.keep_alive_ = false;
-        //complete_ = true;
-    }
-    else {
-        //resp->init(http_code_, request_.keep_alive_, http_path_, file_size);
-        response_.keep_alive_ = request_.keep_alive_;
-        //complete_ = false;
-    }
-    response_.make_header(buffer);
 }
 
 void HttpConn::process_body()
@@ -174,12 +176,6 @@ void HttpConn::process_body()
     netlib::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
     {
-        if (200 != response_.code_) // error has no file body
-        {
-            conn->close();
-            return;
-        }
-
 //        if (nullptr == file_) {
 //            file_ = fopen(response_.path_.data(), "rb");
 //            if (nullptr == file_) {
@@ -193,25 +189,28 @@ void HttpConn::process_body()
         netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
         //buffer->ensure_writable(netlib::Buffer::InitialSize);
         readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, file_);
-        if (readbytes > 0) {
-            buffer->has_written(readbytes);
-            conn->send(buffer);
-        }
-        else {
+        if (readbytes < netlib::Buffer::InitialSize)
+        {
             //if (feof(file_)) {
             //}
             //else if (ferror(file_)) {
             //}
-               
             fclose(file_);
             file_ = nullptr;
 
-            //LOG_TRACE("response process complete");
+            //LOG_TRACE("response process file complete");
+            is_body_ = false;
 
-            if (response_.keep_alive_)
-                init(conn);
-            else
-                conn->close();
+            // no data to trigger send callback
+            // so this assure complete
+            if (0 == readbytes)
+                send_complete(conn);
+        }
+
+        if (readbytes > 0)
+        {
+            buffer->has_written(readbytes);
+            conn->send(buffer);
         }
     }
 }
