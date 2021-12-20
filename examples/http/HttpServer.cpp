@@ -72,9 +72,15 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     LOG_INFO("{}", buffer->begin_read());
 
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    bool complete = http_conn->parse(buffer);
-    if (complete)
+    if (!http_conn->parse(buffer))
     {
+        conn->send("HTTP/1.1 400 Bad Request\r\n\r\n", 28);
+        //conn->close();
+    }
+
+    if (http_conn->is_complete())
+    {
+        // on_request(HttpRequest*, HttpResponse*);
         workers_.append(std::bind(&HttpConn::process, http_conn));
 
         // queue<HttpConnPtr> for continuous serveral requests?
@@ -88,7 +94,10 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
 void HttpServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 {
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    workers_.append(std::bind(&HttpConn::process_body, http_conn));
+    if (http_conn->is_body())
+        workers_.append(std::bind(&HttpConn::process_body, http_conn));
+    else
+        http_conn->send_complete(conn);
 }
 
 void HttpServer::on_idle()
