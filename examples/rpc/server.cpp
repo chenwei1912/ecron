@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
     loop.add_signal(SIGINT);
     //loop.remove_signal(SIGINT);
 
-    loop.add_timer(3, [&loop](){
+    loop.add_timer(3, []{
         //std::cout << "idle do something." << std::endl;
         netlib::LOGGER.flush();
     }, true);
