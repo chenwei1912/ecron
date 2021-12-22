@@ -1,7 +1,4 @@
-#include <iostream>
-
-#include "EventLoop.h"
-#include "TcpClient.h"
+#include "RpcClient.h"
 #include "Logger.h"
 
 #include "RpcChannel.h"
@@ -9,151 +6,82 @@
 
 #include "my_service.pb.h"
 
+#include <iostream>
 
-class RpcClient;
-typedef std::function<void(RpcClient*)> RpcConnCallback;
 
-class RpcClient // simple wrap
+class StubImpl
 {
 public:
-    explicit RpcClient(netlib::EventLoop* loop)
-        : client_(loop, "RpcClient")
-        //, channel_(new RpcChannel())
-        , stub_(&channel_)
-        , log_id_(0)
+    explicit StubImpl(RpcChannel* channel)
+                : stub_(channel)
+                , log_id_(0) {}
+    ~StubImpl() {}
+
+    void test_method()
     {
-        client_.set_connection_callback(std::bind(&RpcClient::on_connection, 
-                this, std::placeholders::_1));
-        client_.set_recv_callback(std::bind(&RpcChannel::on_recv, &channel_, 
-                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-//        client_.set_sendcomplete_callback(std::bind(&RpcClient::on_sendcomplete, 
-//                this, std::placeholders::_1));
+        echo("hello, rpc");
+        add(3, 4);
     }
-    ~RpcClient() {}
-
-    void connect(const char* strip, unsigned short port)
+    
+    void echo(const std::string& str)
     {
-        client_.connect(strip, port);
-    }
+        EchoRequest request;
+        request.set_message(str);
 
-//    void set_conn_callback(RpcConnCallback f)
-//    {
-//        connection_f_ = f;
-//    }
+        RpcController* ctrl = new RpcController; // delete in channel
+        ctrl->set_id(log_id_++);
+        EchoResponse* response = new EchoResponse; // delete in channel
+        auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
+                            ctrl, static_cast<google::protobuf::Message*>(response));
 
-    void disconnect()
-    {
-        client_.disconnect();
+        //EchoService_Stub stub(&channel_);
+        stub_.Echo(ctrl, &request, response, done);
     }
 
-    inline RpcChannel* get_channel() { return &channel_; }
+    void add(int a, int b)
+    {
+        AddRequest request;
+        request.set_a(a);
+        request.set_b(b);
 
-    void echo(const std::string& str);
-    void add(int a, int b);
+        RpcController* ctrl = new RpcController; // delete in channel
+        ctrl->set_id(log_id_++);
+        AddResponse* response = new AddResponse; // delete in channel
+        auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
+                            ctrl, static_cast<google::protobuf::Message*>(response));
+
+        //EchoService_Stub stub(&channel_);
+        stub_.Add(ctrl, &request, response, done);
+    }
 
 private:
-    void on_connection(const netlib::TcpConnectionPtr& conn);
-    void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
 
-    void on_done(RpcController* ctrl, google::protobuf::Message* resp);
-    void test_method();
+    void on_done(RpcController* ctrl, google::protobuf::Message* resp)
+    {
+        EchoResponse* echo = dynamic_cast<EchoResponse*>(resp);
+        if (nullptr != echo)
+        {
+            LOG_INFO("RpcClient recv {} echo: {}", ctrl->get_id(), echo->message());
+            //add(3, 4);
+            return;
+        }
+        AddResponse* add = dynamic_cast<AddResponse*>(resp);
+        if (nullptr != add)
+        {
+            LOG_INFO("RpcClient recv {} add: {}", ctrl->get_id(), add->result());
+            //echo("hello, rpc");
+            return;
+        }
 
-    netlib::TcpClient client_;
-    RpcChannel channel_;
+        //delete ctl;
+        //delete resp;
+    }
+
     EchoService_Stub stub_;
-
-    //RpcConnCallback connection_f_;
-    netlib::TimerId timer_;
 
     int log_id_;
 };
 
-void RpcClient::on_connection(const netlib::TcpConnectionPtr& conn)
-{
-    if (conn->connected()) {
-        channel_.set_conn(conn);
-        //conn->set_context(channel_);
-
-        timer_ = client_.get_loop()->add_timer(1, std::bind(&RpcClient::test_method, this), true);
-    }
-    else {
-        client_.get_loop()->del_timer(timer_);
-        client_.get_loop()->quit();
-        //std::cout << "tcp connection closed" << std::endl;
-    }
-
-//    if (connection_f_)
-//        connection_f_(this);
-}
-
-void RpcClient::on_done(RpcController* ctrl, google::protobuf::Message* resp)
-{
-    EchoResponse* echo = dynamic_cast<EchoResponse*>(resp);
-    if (nullptr != echo)
-    {
-        LOG_INFO("RpcClient recv {} echo: {}", ctrl->get_id(), echo->message());
-        //add(3, 4);
-        return;
-    }
-    AddResponse* add = dynamic_cast<AddResponse*>(resp);
-    if (nullptr != add)
-    {
-        LOG_INFO("RpcClient recv {} add: {}", ctrl->get_id(), add->result());
-        //echo("hello, rpc");
-        return;
-    }
-
-    //delete ctl;
-    //delete resp;
-}
-
-void RpcClient::test_method()
-{
-    echo("hello, rpc");
-    add(3, 4);
-}
-
-void RpcClient::echo(const std::string& str)
-{
-    EchoRequest request;
-    request.set_message(str);
-
-    RpcController* ctrl = new RpcController; // delete in channel
-    ctrl->set_id(log_id_++);
-    EchoResponse* response = new EchoResponse; // delete in channel
-    auto done = google::protobuf::NewCallback(this, &RpcClient::on_done, 
-                        ctrl, static_cast<google::protobuf::Message*>(response));
-
-    //EchoService_Stub stub(&channel_);
-    stub_.Echo(ctrl, &request, response, done);
-}
-
-void RpcClient::add(int a, int b)
-{
-    AddRequest request;
-    request.set_a(a);
-    request.set_b(b);
-
-    RpcController* ctrl = new RpcController; // delete in channel
-    ctrl->set_id(log_id_++);
-    AddResponse* response = new AddResponse; // delete in channel
-    auto done = google::protobuf::NewCallback(this, &RpcClient::on_done, 
-                        ctrl, static_cast<google::protobuf::Message*>(response));
-
-    //EchoService_Stub stub(&channel_);
-    stub_.Add(ctrl, &request, response, done);
-}
-
-//void conn_func(RpcClient* client)
-//{
-//    client->get_loop()->add_timer(1, std::bind(&RpcClient::test_method, client), true);
-//}
-
-void idle_func()
-{
-    //std::cout << "idle do something." << std::endl;
-    netlib::LOGGER.flush();
-}
 
 int main(int argc, char* argv[])
 {
@@ -173,11 +101,32 @@ int main(int argc, char* argv[])
 
     netlib::EventLoop loop;
     RpcClient client(&loop);
+    StubImpl stub(client.get_channel());
 
-    //client.set_conn_callback(conn_func);
+    client.set_conn_callback([&loop, &stub](RpcClient* cl){
+        if (cl->is_connected())
+            loop.add_timer(1, std::bind(&StubImpl::test_method, &stub), true);
+        else
+            loop.quit();
+    });
     client.connect(argv[1], port);
 
-    loop.add_timer(3, idle_func, true);
+    loop.set_signal_handle([&loop](int signal){
+        switch (signal)
+        {
+            case SIGINT:
+            case SIGTERM:
+                loop.quit();
+                break;
+            default:
+                break;
+        }
+    });
+    loop.add_signal(SIGINT);
+
+    loop.add_timer(3, []{
+        netlib::LOGGER.flush();
+    }, true);
 
     loop.loop();
 
