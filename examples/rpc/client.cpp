@@ -5,8 +5,13 @@
 #include "RpcController.h"
 
 #include "my_service.pb.h"
+#include "gflags/gflags.h"
 
 #include <iostream>
+
+
+DEFINE_string(host, "192.168.17.19", "IP Address of server");
+DEFINE_int32(port, 2007, "TCP Port of remote server");
 
 
 class StubImpl
@@ -28,13 +33,12 @@ public:
         EchoRequest request;
         request.set_message(str);
 
-        RpcController* ctrl = new RpcController; // delete in channel
+        EchoResponse* response = new EchoResponse;
+
+        RpcController* ctrl = new RpcController;
         ctrl->set_id(log_id_++);
-        EchoResponse* response = new EchoResponse; // delete in channel
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
-
-        //EchoService_Stub stub(&channel_);
         stub_.Echo(ctrl, &request, response, done);
     }
 
@@ -44,13 +48,12 @@ public:
         request.set_a(a);
         request.set_b(b);
 
-        RpcController* ctrl = new RpcController; // delete in channel
+        AddResponse* response = new AddResponse;
+
+        RpcController* ctrl = new RpcController;
         ctrl->set_id(log_id_++);
-        AddResponse* response = new AddResponse; // delete in channel
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
-
-        //EchoService_Stub stub(&channel_);
         stub_.Add(ctrl, &request, response, done);
     }
 
@@ -61,15 +64,13 @@ private:
         EchoResponse* echo = dynamic_cast<EchoResponse*>(resp);
         if (nullptr != echo)
         {
-            LOG_INFO("RpcClient recv {} echo: {}", ctrl->get_id(), echo->message());
-            //add(3, 4);
+            LOG_INFO("RpcClient echo {} result: {}", ctrl->get_id(), echo->message());
             return;
         }
         AddResponse* add = dynamic_cast<AddResponse*>(resp);
         if (nullptr != add)
         {
-            LOG_INFO("RpcClient recv {} add: {}", ctrl->get_id(), add->result());
-            //echo("hello, rpc");
+            LOG_INFO("RpcClient add {} result: {}", ctrl->get_id(), add->result());
             return;
         }
 
@@ -85,13 +86,9 @@ private:
 
 int main(int argc, char* argv[])
 {
-    if (argc < 3) {
-        std::cout << "Usage: " << argv[0] << " host_ip port" << std::endl;
-        return -1;
-    }
-
-    uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
-
+    // Parse gflags.
+    gflags::ParseCommandLineFlags(&argc, &argv, false);
+    
     bool ret = netlib::LOGGER.init("rpc_client.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
@@ -109,7 +106,7 @@ int main(int argc, char* argv[])
         else
             loop.quit();
     });
-    client.connect(argv[1], port);
+    client.connect(FLAGS_host.c_str(), FLAGS_port);
 
     loop.set_signal_handle([&loop](int signal){
         switch (signal)

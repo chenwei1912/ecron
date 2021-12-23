@@ -23,6 +23,15 @@ RpcController::~RpcController()
     LOG_TRACE("RpcController destructing");
 }
 
+void RpcController::reset()
+{
+    response_ = nullptr;
+    done_ = nullptr;
+
+    error_.clear();
+    log_id_ = 0;
+}
+
 void RpcController::set_id(int id)
 {
     log_id_ = id;

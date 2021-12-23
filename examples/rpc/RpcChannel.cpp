@@ -35,12 +35,12 @@ RpcChannel::RpcChannel()
 RpcChannel::~RpcChannel()
 {
     LOG_TRACE("RpcChannel destructing");
-    for (const auto& item : outstandings_)
+    for (const auto& item : reqs_)
     {
-        OutstandingData out = item.second;
-        delete out.ctrl;
-        delete out.response;
-        delete out.done;
+        RpcController* ctrl = item.second;
+        delete ctrl->get_resp();
+        delete ctrl->get_done();
+        delete ctrl;
     }
 }
 
@@ -65,7 +65,7 @@ void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
               const google::protobuf::Message* request,
               google::protobuf::Message* response,
               google::protobuf::Closure* done)
-{
+{   
     // packed request
     RpcMessage message;
     message.set_type(REQUEST);
@@ -76,8 +76,10 @@ void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
     message.set_request(request->SerializeAsString());
 
     // save request associated info
-    OutstandingData out = { controller, response, done };
-    outstandings_[id] = out;
+    RpcController* ctrl = static_cast<RpcController*>(controller);
+    ctrl->set_resp(response);
+    ctrl->set_done(done);
+    reqs_[id] = ctrl;
 
     // send request
     pack_send(&message);
@@ -130,39 +132,36 @@ void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
         int64_t id = rpcmessage->id();
         //assert(message.has_response() || message.has_error());
 
-        //::google::protobuf::Message* response = nullptr;
-        //::google::protobuf::Closure* done = nullptr;
-        OutstandingData out = { nullptr, nullptr, nullptr };
+        //google::protobuf::Message* response = nullptr;
+        //google::protobuf::Closure* done = nullptr;
+        RpcController* controller = nullptr;
+        auto it = reqs_.find(id);
+        if (it != reqs_.end())
         {
-            auto it = outstandings_.find(id);
-            if (it != outstandings_.end())
-            {
-                out = it->second;
-                outstandings_.erase(it);
-            }
+            controller = it->second;
+            reqs_.erase(it);
         }
 
-        if (nullptr != out.response)
+        std::unique_ptr<RpcController> ctrl(controller);
+        if (ctrl)
         {
-            std::unique_ptr<google::protobuf::Message> resp(out.response);
-            //if (message.has_response())
-            out.response->ParseFromString(rpcmessage->response());
-
-            std::unique_ptr<google::protobuf::RpcController> ctrl;
-            if (nullptr != out.ctrl)
+            std::unique_ptr<google::protobuf::Message> resp(ctrl->get_resp());
+            if (resp)
             {
+                //if (message.has_response())
+                resp->ParseFromString(rpcmessage->response());
+
                 //RpcController* ctrl = dynamic_cast<RpcMessage*>(out.ctrl);
-                ctrl.reset(out.ctrl);
+                //ctrl.reset(out.ctrl);
 
                 auto it = _CodeError.find(static_cast<int>(rpcmessage->error()));
                 if (it != _CodeError.end())
                     ctrl->SetFailed(it->second);
+
+                // self delete
+                if (nullptr != ctrl->get_done())
+                    ctrl->get_done()->Run();
             }
-
-            // invoke response callback
-            if (nullptr != out.done)
-                out.done->Run();
-
         }
     }
     else if (rpcmessage->type() == REQUEST) // server recv request
@@ -184,15 +183,17 @@ void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
                     if (request->ParseFromString(rpcmessage->request()))
                     {
                         std::unique_ptr<google::protobuf::Message> response(service->GetResponsePrototype(method).New());
-                        std::unique_ptr<google::protobuf::RpcController> ctrl(new RpcController);
+                        std::unique_ptr<RpcController> ctrl(new RpcController);
                         int64_t id = rpcmessage->id();
-                        OutstandingData out = { ctrl.get(), response.get(), nullptr };
 
-                        // in done->Run(), self delete
-                        auto done = google::protobuf::NewCallback(this, &RpcChannel::on_done, out, id);
+                        // done self delete
+                        auto done = google::protobuf::NewCallback(this, &RpcChannel::on_done, id, ctrl.get());
+
+                        ctrl->set_resp(response.get());
+                        ctrl->set_done(done);
+                        //reqs_[id] = ctrl.get();
 
                         // call the server's method
-                        // done->Run() is invoke in service->CallMethod
                         service->CallMethod(method, ctrl.get(), request.get(), response.get(), done);
                         error = NO_ERROR;
                     }
@@ -231,17 +232,17 @@ void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
 }
 
 // this callback is for server side after user define method invoke
-void RpcChannel::on_done(OutstandingData out, int64_t id)
+void RpcChannel::on_done(int64_t id, RpcController* ctrl)
 {
-    // process result use out.ctrl(RpcController)
+    // process result use RpcController
 //    ErrorCode error = NO_ERROR;
-//    if (nullptr != out.ctrl)
+//    if (nullptr != ctrl)
 //    {
-//        if (out.ctrl->Failed())
+//        if (ctrl->Failed())
 //            error = INVALID_REQUEST;
 //    }
 
-    send_resp(id, NO_ERROR, out.response);
+    send_resp(id, NO_ERROR, ctrl->get_resp());
 }
 
 void RpcChannel::send_resp(int64_t id, int code, google::protobuf::Message* resp)

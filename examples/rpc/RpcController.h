@@ -15,6 +15,14 @@ public:
     ~RpcController();
 
     // ----- user defined------
+    void reset();
+
+    void set_resp(google::protobuf::Message* resp) { response_ = resp; }
+    google::protobuf::Message* get_resp() const { return response_; }
+
+    void set_done(google::protobuf::Closure* done) { done_ = done; }
+    google::protobuf::Closure* get_done() const { return done_; }
+    
     void set_id(int id);
     int get_id() const;
 
@@ -30,6 +38,10 @@ public:
     virtual void NotifyOnCancel(google::protobuf::Closure* callback) {}
 
 private:
+
+    google::protobuf::Message* response_;
+    google::protobuf::Closure* done_;
+        
     std::string error_;
     int log_id_;
 };

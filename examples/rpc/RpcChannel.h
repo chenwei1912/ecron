@@ -14,6 +14,8 @@
 class RpcMessage;
 typedef std::shared_ptr<RpcMessage> RpcMessagePtr;
 
+class RpcController;
+
 //typedef std::pair<::google::protobuf::Message*, ::google::protobuf::Closure*> OutstandingCall;
 
 class RpcChannel : public google::protobuf::RpcChannel
@@ -56,10 +58,10 @@ private:
 
     //netlib::TcpConnectionPtr conn_;
     std::weak_ptr<netlib::TcpConnection> conn_weak_;
-    std::unordered_map<int64_t, OutstandingData> outstandings_;
+    std::unordered_map<int64_t, RpcController*> reqs_;
 
     // ----- server side------
-    void on_done(OutstandingData out, int64_t id);
+    void on_done(int64_t id, RpcController* ctrl);
     void send_resp(int64_t id, int code, google::protobuf::Message* resp);
         
     std::unordered_map<std::string, ::google::protobuf::Service*>* services_;
