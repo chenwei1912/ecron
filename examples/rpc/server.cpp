@@ -1,10 +1,15 @@
 
-#include <iostream>
-
 #include "RpcServer.h"
 #include "Logger.h"
+#include "gflags/gflags.h"
 
 #include "my_service.pb.h"
+
+#include <iostream>
+
+
+DEFINE_string(host, "192.168.17.19", "IP Address of server");
+DEFINE_int32(port, 2007, "TCP Port of remote server");
 
 
 class EchoServiceImpl : public EchoService
@@ -57,10 +62,8 @@ void on_idle()
 
 int main(int argc, char* argv[])
 {
-//    if (argc < 3) {
-//        std::cout << "Usage: " << argv[0] << " host_ip port" << std::endl;
-//        return -1;
-//    }
+    // Parse gflags.
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     bool ret = false;
     ret = netlib::LOGGER.init("rpc_server.log");
@@ -76,8 +79,7 @@ int main(int argc, char* argv[])
     EchoServiceImpl echo_service;
     server.register_service(&echo_service);
 	
-	uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
-    ret = server.start(argv[1], port);
+    ret = server.start(FLAGS_host.c_str(), FLAGS_port);
     if (!ret) {
         std::cout << "http server start failed." << std::endl;
         return -2;
