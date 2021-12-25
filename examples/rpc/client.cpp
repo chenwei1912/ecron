@@ -89,14 +89,14 @@ int main(int argc, char* argv[])
     // Parse gflags.
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     
-    bool ret = netlib::LOGGER.init("rpc_client.log");
+    bool ret = ecron::LOGGER.init("rpc_client.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
         return -1;
     }
-    netlib::LOGGER.set_level(netlib::LL_Trace);
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
-    netlib::EventLoop loop;
+    ecron::net::EventLoop loop;
     RpcClient client(&loop);
     StubImpl stub(client.get_channel());
 
@@ -122,13 +122,13 @@ int main(int argc, char* argv[])
     loop.add_signal(SIGINT);
 
     loop.add_timer(3, []{
-        netlib::LOGGER.flush();
+        ecron::LOGGER.flush();
     }, true);
 
     loop.loop();
 
     // never run
-    netlib::LOGGER.release();
+    ecron::LOGGER.release();
     google::protobuf::ShutdownProtobufLibrary();
     std::cout << "main exit." << std::endl;
     return 0;

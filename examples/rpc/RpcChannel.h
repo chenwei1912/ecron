@@ -31,8 +31,8 @@ public:
 //  RpcChannel& operator=(RpcChannel&&) = default;
 
     // ----- both side------
-    void set_conn(const netlib::TcpConnectionPtr& conn);
-    void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
+    void set_conn(const ecron::net::TcpConnectionPtr& conn);
+    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
 
     // ----- server side------
     void set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services);
@@ -52,12 +52,12 @@ private:
         google::protobuf::Closure* done;
     };
 
-    void process(netlib::Buffer* buffer, size_t len);
+    void process(ecron::Buffer* buffer, size_t len);
     void process_message(const RpcMessagePtr& rpcmessage);
     void pack_send(RpcMessage* msg);
 
     //netlib::TcpConnectionPtr conn_;
-    std::weak_ptr<netlib::TcpConnection> conn_weak_;
+    std::weak_ptr<ecron::net::TcpConnection> conn_weak_;
     std::unordered_map<int64_t, RpcController*> reqs_;
 
     // ----- server side------

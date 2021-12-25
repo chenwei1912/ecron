@@ -32,7 +32,7 @@ struct HttpResponse
     //bool get_keepalive() { return keep_alive_; }
     //void set_contentlength(uint32_t len) { content_len_ = len; }
 
-    void make_header(netlib::Buffer* buffer);
+    void make_header(ecron::Buffer* buffer);
     //void make_response2(netlib::Buffer* buffer);
     //std::string GetFileType(std::string& path);
 

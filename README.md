@@ -1,4 +1,4 @@
-# netlib
+# ecron
 用cpp11实现的高性能网络库，在性能一般的虚拟机下通过 JMeter 100K TCP连接测试。
 
 ## 功能
@@ -19,7 +19,7 @@ $ cd build
 $ cmake ..
 $ make
 ```
-工程目录下的output目录会生成静态库libnetlib和其他示例程序
+工程目录下的output目录会生成静态库 libecron 和其他示例程序
 
 ## 测试
 - Ubuntu18.04 server

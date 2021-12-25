@@ -3,13 +3,15 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_TIMRID_H
-#define NETLIB_TIMRID_H
+#ifndef ECRON_TIMRID_H
+#define ECRON_TIMRID_H
 
 #include <functional>
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 typedef std::function<void()> TimerCallback;
@@ -33,6 +35,7 @@ private:
     uint64_t seq_;
 };
 
-}
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_TIMRID_H
+#endif // ECRON_TIMRID_H

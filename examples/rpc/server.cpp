@@ -57,7 +57,7 @@ public:
 void on_idle()
 {
     //std::cout << "idle do something." << std::endl;
-    netlib::LOGGER.flush();
+    ecron::LOGGER.flush();
 }
 
 int main(int argc, char* argv[])
@@ -66,14 +66,14 @@ int main(int argc, char* argv[])
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     bool ret = false;
-    ret = netlib::LOGGER.init("rpc_server.log");
+    ret = ecron::LOGGER.init("rpc_server.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
         return -1;
     }
-    netlib::LOGGER.set_level(netlib::LL_Trace);
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
-    netlib::EventLoop loop;
+    ecron::net::EventLoop loop;
     RpcServer server(&loop);
 
     EchoServiceImpl echo_service;
@@ -101,13 +101,13 @@ int main(int argc, char* argv[])
 
     loop.add_timer(3, []{
         //std::cout << "idle do something." << std::endl;
-        netlib::LOGGER.flush();
+        ecron::LOGGER.flush();
     }, true);
 
     loop.loop();
 
     // never run
-    netlib::LOGGER.release();
+    ecron::LOGGER.release();
     google::protobuf::ShutdownProtobufLibrary();
     std::cout << "main exit." << std::endl;
     return 0;

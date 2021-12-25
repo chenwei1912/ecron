@@ -2,7 +2,7 @@
 #include "Logger.h"
 
 
-RpcClient::RpcClient(netlib::EventLoop* loop)
+RpcClient::RpcClient(ecron::net::EventLoop* loop)
     : client_(loop, "RpcClient")
     , is_connected_(false)
 {
@@ -28,7 +28,7 @@ void RpcClient::disconnect()
     client_.disconnect();
 }
 
-void RpcClient::on_connection(const netlib::TcpConnectionPtr& conn)
+void RpcClient::on_connection(const ecron::net::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         channel_.set_conn(conn);

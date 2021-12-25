@@ -4,7 +4,7 @@
 #define POOL_MAXTHREAD_NUM 16
 
 
-using namespace netlib;
+using namespace ecron;
 
 
 ThreadPool::ThreadPool()

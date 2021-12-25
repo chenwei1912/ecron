@@ -3,8 +3,8 @@
 //
 // This is an internal header file, you should not include this.
 
-#ifndef NETLIB_EVENTLOOPPOOL_H
-#define NETLIB_EVENTLOOPPOOL_H
+#ifndef ECRON_EVENTLOOPPOOL_H
+#define ECRON_EVENTLOOPPOOL_H
 
 
 #include <thread>
@@ -13,7 +13,9 @@
 
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 class EventLoop;
@@ -45,6 +47,7 @@ private:
 	std::vector<std::thread> threads_; // io threads
 };
 
-}// namespace netlib
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_EVENTLOOPPOOL_H
+#endif // ECRON_EVENTLOOPPOOL_H

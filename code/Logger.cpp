@@ -10,7 +10,7 @@
 #include "spdlog/sinks/basic_file_sink.h"
 
 
-using namespace netlib;
+using namespace ecron;
 
 
 class Logger::LoggerImpl

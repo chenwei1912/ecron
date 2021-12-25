@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_TCPCLIENT_H
-#define NETLIB_TCPCLIENT_H
+#ifndef ECRON_TCPCLIENT_H
+#define ECRON_TCPCLIENT_H
 
 
 #include <functional>
@@ -16,7 +16,9 @@
 #include "TimerId.h"
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 class EventLoop;
@@ -75,6 +77,7 @@ private:
     SendCompleteCallback sendcomplete_callback_;
 };
 
-}// namespace netlib
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_TCPCLIENT_H
+#endif // ECRON_TCPCLIENT_H

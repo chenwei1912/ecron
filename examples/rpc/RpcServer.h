@@ -13,7 +13,7 @@
 class RpcServer
 {
 public:
-    RpcServer(netlib::EventLoop* loop);
+    RpcServer(ecron::net::EventLoop* loop);
     ~RpcServer();
 
     bool start(const char* strip, unsigned short port);
@@ -21,12 +21,12 @@ public:
     void register_service(::google::protobuf::Service* service);
 
 private:
-    void on_connection(const netlib::TcpConnectionPtr& conn);
-    void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
+    void on_connection(const ecron::net::TcpConnectionPtr& conn);
+    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
     //void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
     
 
-    netlib::TcpServer server_;
+    ecron::net::TcpServer server_;
 
     // task thread pool
     //ThreadPool workers_;

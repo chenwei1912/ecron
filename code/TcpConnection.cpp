@@ -2,9 +2,8 @@
 #include "EventLoop.h"
 #include "Logger.h"
 
-#include <iostream>
 
-using namespace netlib;
+using namespace ecron::net;
 
 //namespace asio = boost::asio;
 //using tcp = asio::ip::tcp;

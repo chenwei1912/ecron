@@ -99,7 +99,7 @@ void HttpResponse::init()
 //    buffer->write(temp, len);
 //}
 
-void HttpResponse::make_header(netlib::Buffer* buffer)
+void HttpResponse::make_header(ecron::Buffer* buffer)
 {
     auto it = _CodeStatus.find(code_); // _CodeStatus[http_code_]
     std::string str = fmt::format("HTTP/1.1 {} {}\r\n", code_, it->second);

@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_BUFFER_H
-#define NETLIB_BUFFER_H
+#ifndef ECRON_BUFFER_H
+#define ECRON_BUFFER_H
 
 
 #include <vector>
@@ -12,7 +12,7 @@
 
 
 
-namespace netlib
+namespace ecron
 {
 
 class Buffer
@@ -67,6 +67,6 @@ private:
 
 typedef std::shared_ptr<Buffer> BufferPtr;
 
-}// namespace netlib
+}// namespace ecron
 
-#endif // NETLIB_BUFFER_H
+#endif // ECRON_BUFFER_H

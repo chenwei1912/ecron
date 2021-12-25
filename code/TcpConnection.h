@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_TCPCONNECTION_H
-#define NETLIB_TCPCONNECTION_H
+#ifndef ECRON_TCPCONNECTION_H
+#define ECRON_TCPCONNECTION_H
 
 #include "Buffer.h"
 
@@ -17,7 +17,9 @@
 
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 class EventLoop;
@@ -110,7 +112,7 @@ private:
 };
 
 
-
+}// namespace net
 }// namespace netlib
 
-#endif // NETLIB_TCPCONNECTION_H
+#endif // ECRON_TCPCONNECTION_H

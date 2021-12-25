@@ -1,5 +1,5 @@
-#ifndef _THREADGROUP_H_
-#define _THREADGROUP_H_
+#ifndef ECRON_THREADGROUP_H_
+#define ECRON_THREADGROUP_H_
 
 
 #include <thread>
@@ -7,10 +7,10 @@
 #include <mutex>
 #include <functional>
 
-#include "block_queue.hpp"
+#include "BlockingQueue.hpp"
 
 
-namespace netlib
+namespace ecron
 {
 
 class ThreadWorker
@@ -34,7 +34,7 @@ public:
 private:
     void run();
 
-    block_queue<Task> tasks_;
+    BlockingQueue<Task> tasks_;
     std::thread thread_;
 
 };
@@ -66,6 +66,6 @@ private:
 
 };
 
-}// namespace netlib
+}// namespace ecron
 
-#endif // _THREADGROUP_H_
+#endif // ECRON_THREADGROUP_H_

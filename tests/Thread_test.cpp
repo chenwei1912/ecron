@@ -39,7 +39,7 @@ void myadd(int a, int b)
 
 TEST_CASE("ThreadPool test case", "[ThreadPool]") {
 
-    netlib::ThreadPool pool;
+    ecron::ThreadPool pool;
     bool ret = pool.start(4, 100000);
     REQUIRE(0 == ret);
 
@@ -56,12 +56,12 @@ TEST_CASE("ThreadPool test case", "[ThreadPool]") {
 
 TEST_CASE("ThreadGroup test case", "[ThreadGroup]") {
 
-    netlib::ThreadGroup group;
+    ecron::ThreadGroup group;
     int ret = group.start(4, 100000);
     REQUIRE(0 == ret);
 
     for (int i = 0; i < 8; ++i) {
-        netlib::ThreadWorker* worker = group.get_worker();
+        ecron::ThreadWorker* worker = group.get_worker();
         std::cout << "worker value : " << worker << std::endl;
         worker->push(std::bind(myadd, i, i + 1));
     }
