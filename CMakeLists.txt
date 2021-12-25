@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(netlib)
+project(ecron)
 
 #set(CMAKE_VERBOSE_MAKEFILEON ON)
 

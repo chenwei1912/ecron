@@ -7,4 +7,4 @@
 
 add_executable(http HttpMain.cpp HttpServer.cpp HttpConn.cpp HttpRequest.cpp HttpResponse.cpp SqlConnPool.cpp http_parser.c)
 
-target_link_libraries(http netlib pthread mysqlclient)
+target_link_libraries(http ecron pthread mysqlclient)

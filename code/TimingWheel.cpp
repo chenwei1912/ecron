@@ -2,15 +2,8 @@
 #include "EventLoop.h"
 #include "Logger.h"
 
-//#include <chrono>
-//#include <functional>
-#include <iostream>
 
-//#include <boost/timer.hpp>
-//#include <boost/chrono.hpp>
-
-
-using namespace netlib;
+using namespace ecron::net;
 using namespace boost::asio;
 
 

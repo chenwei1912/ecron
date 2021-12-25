@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_TCPSERVER_H
-#define NETLIB_TCPSERVER_H
+#ifndef ECRON_TCPSERVER_H
+#define ECRON_TCPSERVER_H
 
 
 #include <functional>
@@ -16,7 +16,9 @@
 #include "EventLoopPool.h"
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 class EventLoop;
@@ -84,6 +86,7 @@ private:
     SendCompleteCallback sendcomplete_callback_;
 };
 
-}// namespace netlib
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_TCPSERVER_H
+#endif // ECRON_TCPSERVER_H

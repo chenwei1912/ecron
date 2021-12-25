@@ -1,5 +1,5 @@
 # RPC
-以 netlib 为网络库的 rpc 库，基于 protobuf rpc 框架。  
+以 ecron 为网络基础的 rpc 库，基于 protobuf rpc 框架。  
 
 ## 功能
 * 用户编写proto文件，实现函数调用服务。  

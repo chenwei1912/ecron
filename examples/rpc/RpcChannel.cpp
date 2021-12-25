@@ -44,12 +44,12 @@ RpcChannel::~RpcChannel()
     }
 }
 
-void RpcChannel::set_conn(const netlib::TcpConnectionPtr& conn)
+void RpcChannel::set_conn(const ecron::net::TcpConnectionPtr& conn)
 {
     conn_weak_ = conn;
 }
 
-void RpcChannel::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
+void RpcChannel::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
 {
     process(buffer, len);
 }
@@ -85,7 +85,7 @@ void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
     pack_send(&message);
 }
 
-void RpcChannel::process(netlib::Buffer* buffer, size_t len)
+void RpcChannel::process(ecron::Buffer* buffer, size_t len)
 {
     // process rpc meta message
     while (buffer->readable_bytes() >= _HeaderLen)
@@ -117,7 +117,7 @@ void RpcChannel::process(netlib::Buffer* buffer, size_t len)
         {
             //errorCallback_(conn, buf, receiveTime, errorCode);
             LOG_ERROR("RpcChannel decode data error");
-            netlib::TcpConnectionPtr conn(conn_weak_.lock());
+            ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
             if (conn)
                 conn->close();
         }
@@ -225,7 +225,7 @@ void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
     else if (rpcmessage->type() == ERROR)
     {
         LOG_TRACE("message type error");
-        netlib::TcpConnectionPtr conn(conn_weak_.lock());
+        ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
         if (conn)
             conn->close();
     }
@@ -260,7 +260,7 @@ void RpcChannel::send_resp(int64_t id, int code, google::protobuf::Message* resp
 
 void RpcChannel::pack_send(RpcMessage* msg)
 {
-    netlib::BufferPtr send_buffer = std::make_shared<netlib::Buffer>();
+    ecron::BufferPtr send_buffer = std::make_shared<ecron::Buffer>();
 
     uint16_t msg_len = msg->ByteSizeLong() + _HeaderLen;
     send_buffer->ensure_writable(msg_len);
@@ -277,7 +277,7 @@ void RpcChannel::pack_send(RpcMessage* msg)
     }
     send_buffer->has_written(msg_len - _HeaderLen);
 
-    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
         conn->send(send_buffer);
 }

@@ -21,11 +21,11 @@ public:
     HttpConn();
     ~HttpConn();
 
-    void init(const netlib::TcpConnectionPtr& conn);
+    void init(const ecron::net::TcpConnectionPtr& conn);
 
-    bool parse(netlib::Buffer* buffer);
+    bool parse(ecron::Buffer* buffer);
     //int parse(const char* pdata, uint32_t len);
-    void send_complete(const netlib::TcpConnectionPtr& conn);
+    void send_complete(const ecron::net::TcpConnectionPtr& conn);
 
     void process();
     void process_body();
@@ -34,11 +34,11 @@ public:
     inline bool is_body() const { return is_body_; }
     
 private:
-    void process_header(netlib::Buffer* buffer);
+    void process_header(ecron::Buffer* buffer);
     void do_post();
     bool user_verify(const std::string& name, const std::string& pwd, int login);
 
-    std::weak_ptr<netlib::TcpConnection> conn_weak_;
+    std::weak_ptr<ecron::net::TcpConnection> conn_weak_;
     
     HttpRequest request_;
 

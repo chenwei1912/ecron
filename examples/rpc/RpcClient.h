@@ -12,7 +12,7 @@ typedef std::function<void(RpcClient*)> RpcConnCallback;
 class RpcClient // simple wrap
 {
 public:
-    explicit RpcClient(netlib::EventLoop* loop);
+    explicit RpcClient(ecron::net::EventLoop* loop);
     ~RpcClient();
 
     void set_conn_callback(RpcConnCallback f)
@@ -27,10 +27,10 @@ public:
     inline RpcChannel* get_channel() { return &channel_; }
 
 private:
-    void on_connection(const netlib::TcpConnectionPtr& conn);
+    void on_connection(const ecron::net::TcpConnectionPtr& conn);
     //void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
 
-    netlib::TcpClient client_;
+    ecron::net::TcpClient client_;
     RpcChannel channel_;
 
     RpcConnCallback connection_f_;

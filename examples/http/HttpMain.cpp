@@ -38,14 +38,14 @@ int main(int argc, char* argv[])
     }
 
     bool ret = false;
-    ret = netlib::LOGGER.init("httpserver.log");
+    ret = ecron::LOGGER.init("httpserver.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
         return -1;
     }
-    netlib::LOGGER.set_level(netlib::LL_Trace);
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
-    netlib::EventLoop loop;
+    ecron::net::EventLoop loop;
     HttpServer server(&loop);
 
     dns_test();
@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     loop.loop();
 
     // never run
-    netlib::LOGGER.release();
+    ecron::LOGGER.release();
     std::cout << "main exit." << std::endl;
     return 0;
 }

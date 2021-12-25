@@ -10,7 +10,7 @@
 class MyClient
 {
 public:
-    explicit MyClient(netlib::EventLoop* loop)
+    explicit MyClient(ecron::net::EventLoop* loop)
         : client_(loop, "MyClient")
     {
         client_.set_connection_callback(std::bind(&MyClient::on_connection, 
@@ -28,14 +28,14 @@ public:
     }
 
 private:
-    void on_connection(const netlib::TcpConnectionPtr& conn);
-    void on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len);
-    void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
+    void on_connection(const ecron::net::TcpConnectionPtr& conn);
+    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
+    void on_sendcomplete(const ecron::net::TcpConnectionPtr& conn);
 
-    netlib::TcpClient client_;
+    ecron::net::TcpClient client_;
 };
 
-void MyClient::on_connection(const netlib::TcpConnectionPtr& conn)
+void MyClient::on_connection(const ecron::net::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         //std::cout << "tcp connection coming" << std::endl;
@@ -45,7 +45,7 @@ void MyClient::on_connection(const netlib::TcpConnectionPtr& conn)
         //std::cout << "tcp connection closed" << std::endl;
     }
 }
-void MyClient::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
+void MyClient::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
 {
 //    std::cout << buffer->begin_read() << " "<< len << " "
 //        << buffer->readable_bytes() << " " << buffer->writable_bytes() << std::endl;
@@ -54,7 +54,7 @@ void MyClient::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buf
 
     buffer->has_readed(len); // retrieve
 }
-void MyClient::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
+void MyClient::on_sendcomplete(const ecron::net::TcpConnectionPtr& conn)
 {
     //std::cout << "send data complete." << std::endl;
 }
@@ -62,7 +62,7 @@ void MyClient::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 void idle_timeout()
 {
     //std::cout << "idle do something." << std::endl;
-    netlib::LOGGER.flush();
+    ecron::LOGGER.flush();
 }
 
 int main(int argc, char* argv[])
@@ -72,14 +72,14 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    bool ret = netlib::LOGGER.init("echoserver.log");
+    bool ret = ecron::LOGGER.init("echoserver.log");
     if (!ret) {
         std::cout << "log init failed." << std::endl;
         return -1;
     }
-    netlib::LOGGER.set_level(netlib::LL_Trace);
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
-    netlib::EventLoop loop;
+    ecron::net::EventLoop loop;
     MyClient client(&loop);
 
     uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
     loop.loop();
 
     // never run
-    netlib::LOGGER.release();
+    ecron::LOGGER.release();
     std::cout << "main exit." << std::endl;
     return 0;
 }

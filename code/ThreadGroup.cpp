@@ -1,7 +1,7 @@
 #include "ThreadGroup.h"
 
 
-using namespace netlib;
+using namespace ecron;
 
 
 ThreadWorker::ThreadWorker(size_t max_task)

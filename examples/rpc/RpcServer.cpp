@@ -9,7 +9,7 @@
 
 
 
-RpcServer::RpcServer(netlib::EventLoop* loop)
+RpcServer::RpcServer(ecron::net::EventLoop* loop)
     : server_(loop, "RpcServer")
 {
     server_.set_connection_callback(std::bind(&RpcServer::on_connection, 
@@ -50,7 +50,7 @@ void RpcServer::register_service(::google::protobuf::Service* service)
     services_[desc->full_name()] = service;
 }
 
-void RpcServer::on_connection(const netlib::TcpConnectionPtr& conn)
+void RpcServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         RpcChannelPtr channel = std::make_shared<RpcChannel>();
@@ -65,7 +65,7 @@ void RpcServer::on_connection(const netlib::TcpConnectionPtr& conn)
     }
 }
 
-void RpcServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
+void RpcServer::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
 {
     RpcChannelPtr channel = boost::any_cast<RpcChannelPtr>(conn->get_context());
     channel->on_recv(conn, buffer, len);

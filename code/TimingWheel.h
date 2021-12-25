@@ -7,8 +7,8 @@
 // https://www.fwqwd.com/12392.html
 // multi wheel https://www.cnblogs.com/zhongwencool/p/timing_wheel.html
 
-#ifndef NETLIB_TIMINGWHEEL_H
-#define NETLIB_TIMINGWHEEL_H
+#ifndef ECRON_TIMINGWHEEL_H
+#define ECRON_TIMINGWHEEL_H
 
 #include "TimerId.h"
 
@@ -24,7 +24,9 @@
 
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 class Timer
@@ -108,6 +110,7 @@ private:
 
 };
 
-}
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_TIMINGWHEEL_H
+#endif // ECRON_TIMINGWHEEL_H

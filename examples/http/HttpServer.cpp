@@ -7,7 +7,7 @@
 #include <iostream>
 
 
-HttpServer::HttpServer(netlib::EventLoop* loop)
+HttpServer::HttpServer(ecron::net::EventLoop* loop)
     : server_(loop, "HttpServer")
 {
     server_.set_connection_callback(std::bind(&HttpServer::on_connection, 
@@ -53,7 +53,7 @@ bool HttpServer::start(const char* strip, unsigned short port)
     return ret;
 }
 
-void HttpServer::on_connection(const netlib::TcpConnectionPtr& conn)
+void HttpServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         HttpConnPtr http_conn = std::make_shared<HttpConn>();
@@ -67,7 +67,7 @@ void HttpServer::on_connection(const netlib::TcpConnectionPtr& conn)
     }
 }
 
-void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* buffer, size_t len)
+void HttpServer::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
 {
     LOG_INFO("{}", buffer->begin_read());
 
@@ -91,7 +91,7 @@ void HttpServer::on_recv(const netlib::TcpConnectionPtr& conn, netlib::Buffer* b
     }
 }
 
-void HttpServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
+void HttpServer::on_sendcomplete(const ecron::net::TcpConnectionPtr& conn)
 {
     HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
     if (http_conn->is_body())
@@ -102,7 +102,7 @@ void HttpServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)
 
 void HttpServer::on_idle()
 {
-    netlib::LOGGER.flush();
+    ecron::LOGGER.flush();
 }
 
 

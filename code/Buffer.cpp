@@ -3,7 +3,7 @@
 #include <algorithm>
 
 
-using namespace netlib;
+using namespace ecron;
 
 
 const size_t Buffer::InitialSize = 1024;

@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef NETLIB_EVENTLOOP_H
-#define NETLIB_EVENTLOOP_H
+#ifndef ECRON_EVENTLOOP_H
+#define ECRON_EVENTLOOP_H
 
 #include "TimerId.h"
 
@@ -16,7 +16,9 @@
 
 
 
-namespace netlib
+namespace ecron
+{
+namespace net
 {
 
 //using work_guard_type = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
@@ -73,6 +75,7 @@ private:
 
 };
 
-}// namespace netlib
+}// namespace net
+}// namespace ecron
 
-#endif // NETLIB_EVENTLOOP_H
+#endif // ECRON_EVENTLOOP_H

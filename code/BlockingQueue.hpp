@@ -1,5 +1,5 @@
-#ifndef _BLOCK_QUEUE_H_
-#define _BLOCK_QUEUE_H_
+#ifndef ECRON_BLOCKINGQUEUE_H
+#define ECRON_BLOCKINGQUEUE_H
 
 #include <deque>
 #include <mutex>
@@ -7,27 +7,27 @@
 #include <chrono>
 
 
-namespace netlib
+namespace ecron
 {
 
 template<typename T>
-class block_queue
+class BlockingQueue
 {
 public:
-	block_queue()
+	BlockingQueue()
         : max_count_(0)
         , exit_(false) {
 	}
 
-	~block_queue() {
+	~BlockingQueue() {
         //clear(); // thread safe?
 	}
 
-	block_queue(const block_queue&) = delete;
-	block_queue& operator=(const block_queue&) = delete;
+	BlockingQueue(const BlockingQueue&) = delete;
+	BlockingQueue& operator=(const BlockingQueue&) = delete;
 
-//	block_queue(block_queue&&) = default;
-//    block_queue& operator=(block_queue&&) = default;
+    //BlockingQueue(BlockingQueue&&) = default;
+    //BlockingQueue& operator=(BlockingQueue&&) = default;
 
     // not thread safe
     bool init(size_t max_count = 0) {
@@ -111,7 +111,7 @@ public:
 
 	bool full() {
         std::lock_guard<std::mutex> lock(mutex_);
-        return (queue_.size() == max_count_);
+        return (max_count_ > 0 && queue_.size() >= max_count_);
 	}
 
 	size_t size() {
@@ -139,6 +139,6 @@ private:
     bool exit_;
 };
 
-}// namespace netlib
+}// namespace ecron
 
-#endif // _BLOCK_QUEUE_H_
+#endif // ECRON_BLOCKINGQUEUE_H

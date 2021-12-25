@@ -3,12 +3,15 @@
 #include "Logger.h"
 
 
-using namespace netlib;
 using namespace boost::asio;
 
+using namespace ecron::net;
+using namespace ecron;
 
-void default_recv_callback(const netlib::TcpConnectionPtr& conn, 
-                            netlib::Buffer* buffer, size_t len)
+
+
+void default_recv_callback(const TcpConnectionPtr& conn, 
+                            Buffer* buffer, size_t len)
 {
     buffer->has_readed(len);
 }

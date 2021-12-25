@@ -65,7 +65,7 @@ HttpConn::~HttpConn()
         fclose(file_);
 }
 
-void HttpConn::init(const netlib::TcpConnectionPtr& conn)
+void HttpConn::init(const ecron::net::TcpConnectionPtr& conn)
 {
     conn_weak_ = conn;
     request_.init();
@@ -74,7 +74,7 @@ void HttpConn::init(const netlib::TcpConnectionPtr& conn)
     file_ = nullptr;
 }
 
-bool HttpConn::parse(netlib::Buffer* buffer)
+bool HttpConn::parse(ecron::Buffer* buffer)
 {
     if (!request_.parse(buffer->begin_read(), buffer->readable_bytes()))
     {
@@ -97,7 +97,7 @@ bool HttpConn::parse(netlib::Buffer* buffer)
     return true;
 }
 
-void HttpConn::send_complete(const netlib::TcpConnectionPtr& conn)
+void HttpConn::send_complete(const ecron::net::TcpConnectionPtr& conn)
 {
     if (response_.keep_alive_)
         init(conn);
@@ -107,7 +107,7 @@ void HttpConn::send_complete(const netlib::TcpConnectionPtr& conn)
 
 void HttpConn::process()
 {
-    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
     {
         // fixme: get current dir
@@ -165,7 +165,7 @@ void HttpConn::process()
             is_body_ = true;
         }
 
-        netlib::BufferPtr send_buffer = std::make_shared<netlib::Buffer>();
+        ecron::BufferPtr send_buffer = std::make_shared<ecron::Buffer>();
         response_.make_header(send_buffer.get());
         conn->send(send_buffer);
     }
@@ -173,7 +173,7 @@ void HttpConn::process()
 
 void HttpConn::process_body()
 {
-    netlib::TcpConnectionPtr conn(conn_weak_.lock());
+    ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
     {
 //        if (nullptr == file_) {
@@ -186,10 +186,10 @@ void HttpConn::process_body()
 //        }
 
         size_t readbytes = 0;
-        netlib::BufferPtr buffer = std::make_shared<netlib::Buffer>();
+        ecron::BufferPtr buffer = std::make_shared<ecron::Buffer>();
         //buffer->ensure_writable(netlib::Buffer::InitialSize);
-        readbytes = fread(buffer->begin_write(), 1, netlib::Buffer::InitialSize, file_);
-        if (readbytes < netlib::Buffer::InitialSize)
+        readbytes = fread(buffer->begin_write(), 1, ecron::Buffer::InitialSize, file_);
+        if (readbytes < ecron::Buffer::InitialSize)
         {
             //if (feof(file_)) {
             //}

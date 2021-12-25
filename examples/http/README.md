@@ -1,5 +1,5 @@
 # http
-用netlib实现的高性能http服务器，经过webbenchh压力测试可以实现上万的QPS。  
+用ecron实现的高性能http服务器，经过webbenchh压力测试可以实现10K+的QPS  
 resoures目录下缺失的三个大文件资源 xxx.jpg xxx.mp4 test1.jpg 可去下载 [链接](https://github.com/qinguoyi/TinyWebServer/tree/raw_version/root)
 
 ## 功能

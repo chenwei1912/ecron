@@ -1,5 +1,5 @@
-#ifndef _THREADPOOL_H_
-#define _THREADPOOL_H_
+#ifndef ECRON_THREADPOOL_H
+#define ECRON_THREADPOOL_H
 
 
 #include <thread>
@@ -10,10 +10,10 @@
 #include <functional>
 #include <atomic>
 
-#include "block_queue.hpp"
+#include "BlockingQueue.hpp"
 
 
-namespace netlib
+namespace ecron
 {
 
 class ThreadPool
@@ -39,7 +39,7 @@ private:
     int add_thread(size_t num);
 
     std::vector<std::thread> threads_;
-    block_queue<Task> tasks_;
+    BlockingQueue<Task> tasks_;
     //std::atomic_bool running_;
 
     //size_t max_thread_; // max thread number
@@ -48,6 +48,6 @@ private:
     bool grow_;
 };
 
-}// namespace netlib
+}// namespace ecron
 
-#endif // _THREADPOOL_H_
+#endif // ECRON_THREADPOOL_H

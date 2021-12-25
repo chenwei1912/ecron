@@ -1,11 +1,11 @@
-#ifndef NETLIB_LOGGER_H
-#define NETLIB_LOGGER_H
+#ifndef ECRON_LOGGER_H
+#define ECRON_LOGGER_H
 
 #include "spdlog/fmt/fmt.h"
 #include "Buffer.h"
 
 
-namespace netlib
+namespace ecron
 {
 
 enum LogLevel
@@ -86,46 +86,47 @@ private:
 // -D__FILENAME__='\"$(subst $(dir $<),,$<)\"'")
 #define LOG_TRACE(fmt, ...)                                                           \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Trace) \
-            netlib::LOGGER.write_log(netlib::LL_Trace, fmt " - {}:{}:{}",                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Trace) \
+            ecron::LOGGER.write_log(ecron::LL_Trace, fmt " - {}:{}:{}",                  \
             ##__VA_ARGS__, __FILENAME__, __LINE__, __func__);                             \
     } while (0)
 
 #define LOG_DEBUG(fmt, ...)                                                           \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Debug) \
-            netlib::LOGGER.write_log(netlib::LL_Debug, fmt " - {}:{}:{}",                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Debug) \
+            ecron::LOGGER.write_log(ecron::LL_Debug, fmt " - {}:{}:{}",                  \
             ##__VA_ARGS__, __FILENAME__, __LINE__, __func__);                             \
     } while (0)
 
 #define LOG_INFO(fmt, ...)                                                            \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Info) \
-            netlib::LOGGER.write_log(netlib::LL_Info, fmt,                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Info) \
+            ecron::LOGGER.write_log(ecron::LL_Info, fmt,                  \
             ##__VA_ARGS__);                             \
     } while (0)
 
 #define LOG_WARN(fmt, ...)                                                            \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Warn) \
-            netlib::LOGGER.write_log(netlib::LL_Warn, fmt " - {}:{}",                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Warn) \
+            ecron::LOGGER.write_log(ecron::LL_Warn, fmt " - {}:{}",                  \
             ##__VA_ARGS__, __FILENAME__, __LINE__);                             \
     } while (0)
 
 #define LOG_ERROR(fmt, ...)                                                           \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Error) \
-            netlib::LOGGER.write_log(netlib::LL_Error, fmt " - {}:{}",                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Error) \
+            ecron::LOGGER.write_log(ecron::LL_Error, fmt " - {}:{}",                  \
             ##__VA_ARGS__, __FILENAME__, __LINE__);                             \
     } while (0)
 
 #define LOG_CRITICAL(fmt, ...)                                                        \
     do {                                                                              \
-        if (netlib::LOGGER.is_init() && netlib::LOGGER.get_level() <= netlib::LL_Critical) \
-            netlib::LOGGER.write_log(netlib::LL_Critical, fmt " - {}:{}",                  \
+        if (ecron::LOGGER.is_init() && ecron::LOGGER.get_level() <= ecron::LL_Critical) \
+            ecron::LOGGER.write_log(ecron::LL_Critical, fmt " - {}:{}",                  \
             ##__VA_ARGS__, __FILENAME__, __LINE__);                             \
     } while (0)
 
-}// namespace netlib
 
-#endif // NETLIB_LOGGER_H
+}// namespace ecron
+
+#endif // ECRON_LOGGER_H
