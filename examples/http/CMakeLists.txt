@@ -2,8 +2,8 @@
 #SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 #SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
 
-link_directories( ${PROJECT_SOURCE_DIR}/output)
-link_libraries(libecron.a)
+#link_directories(${PROJECT_SOURCE_DIR}/output)
+#link_libraries(libecron.a)
 link_libraries(libgflags.a)
 link_libraries(libboost_filesystem.a)
 

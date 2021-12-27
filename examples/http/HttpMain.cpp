@@ -13,7 +13,7 @@
 
 DEFINE_string(host, "192.168.17.19", "IP Address of server");
 DEFINE_int32(port, 2007, "TCP Port of remote server");
-DEFINE_string(root_dir, "/home/shared/project/netlib/examples/http/resources", "Http server root directory");
+DEFINE_string(root_dir, "/home/shared/project/ecron/examples/http/resources", "Http server root directory");
 
 
 static const std::unordered_map<std::string, std::string> _SuffixType = {
