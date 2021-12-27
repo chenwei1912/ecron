@@ -100,7 +100,7 @@ void TcpServer::stop()
     {
         item->close();
     }
-    connections_.clear();
+    //connections_.clear();
 }
 
 void TcpServer::accept_loop()

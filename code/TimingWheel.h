@@ -7,8 +7,8 @@
 // https://www.fwqwd.com/12392.html
 // multi wheel https://www.cnblogs.com/zhongwencool/p/timing_wheel.html
 
-#ifndef ECRON_TIMINGWHEEL_H
-#define ECRON_TIMINGWHEEL_H
+#ifndef ECRON_NET_TIMINGWHEEL_H
+#define ECRON_NET_TIMINGWHEEL_H
 
 #include "TimerId.h"
 
@@ -113,4 +113,4 @@ private:
 }// namespace net
 }// namespace ecron
 
-#endif // ECRON_TIMINGWHEEL_H
+#endif // ECRON_NET_TIMINGWHEEL_H

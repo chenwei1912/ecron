@@ -1,14 +1,15 @@
-#ifndef _HTTP_RESPONSE_H_
-#define _HTTP_RESPONSE_H_
+#ifndef ECRON_NET_HTTPRESPONSE_H
+#define ECRON_NET_HTTPRESPONSE_H
 
-#include "http_parser.h"
 #include "Buffer.h"
 
 #include <unordered_map>
 
-//#include <unistd.h>      // close
-//#include <sys/stat.h>    // stat
-//#include <sys/mman.h>    // mmap, munmap
+
+namespace ecron
+{
+namespace net
+{
 
 //enum HttpStatusCode
 //{
@@ -18,31 +19,41 @@
 //    k400BadRequest = 400,
 //    k404NotFound = 404,
 //};
-  
-struct HttpResponse
+
+class HttpResponse
 {
+public:
     HttpResponse();
     ~HttpResponse();
 
     void init();
     //void init(int code, bool keepalive, const std::string& path, uint32_t len);
 
-    //void set_code(int code) { http_code_ = code; }
-    //void set_keepalive(bool on) { keep_alive_ = on; }
-    //bool get_keepalive() { return keep_alive_; }
-    //void set_contentlength(uint32_t len) { content_len_ = len; }
+    void set_code(int code) { code_ = code; }
+    int get_code() const { return code_; }
+    
+    void set_closeconnection(bool on) { close_connection_ = on; }
+    bool get_closeconnection() const { return close_connection_; }
 
-    void make_header(ecron::Buffer* buffer);
-    //void make_response2(netlib::Buffer* buffer);
-    //std::string GetFileType(std::string& path);
+    void set_content_type(const std::string& type) { content_type_ = type; }
+    void set_content_length(uint32_t len) { content_len_ = len; }
+
+    void set_header(const std::string& key, const std::string& value);
+
+    void set_body(const std::string& body) { body_ = body; }
+    
+    void make_buffer(Buffer* buffer);
 
     int code_;
-    bool keep_alive_;
-    std::string path_;
+    bool close_connection_;
+    std::string content_type_;
     uint32_t content_len_;
     std::unordered_map<std::string, std::string> headers_;
-    //std::string body_;
+    std::string body_;
 };
 
-#endif // _HTTP_RESPONSE_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_HTTPRESPONSE_H
 

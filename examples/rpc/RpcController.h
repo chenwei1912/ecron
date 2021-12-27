@@ -1,5 +1,5 @@
-#ifndef _RPC_CONTROLLER_H_
-#define _RPC_CONTROLLER_H_
+#ifndef ECRON_NET_RPCCONTROLLER_H
+#define ECRON_NET_RPCCONTROLLER_H
 
 
 #include "google/protobuf/service.h"
@@ -7,6 +7,10 @@
 #include <memory>
 
 
+namespace ecron
+{
+namespace net
+{
 
 class RpcController : public google::protobuf::RpcController
 {
@@ -48,4 +52,7 @@ private:
 
 typedef std::shared_ptr<RpcController> RpcControllerPtr;
 
-#endif // _RPC_CONTROLLER_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_RPCCONTROLLER_H

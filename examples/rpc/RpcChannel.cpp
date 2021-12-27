@@ -8,6 +8,8 @@
 
 #include "rpc.pb.h"
 
+using namespace ecron::net;
+
 
 static const std::unordered_map<int, std::string> _CodeError = {
     { 0, "" },
@@ -44,23 +46,18 @@ RpcChannel::~RpcChannel()
     }
 }
 
-void RpcChannel::set_conn(const ecron::net::TcpConnectionPtr& conn)
+void RpcChannel::set_conn(const TcpConnectionPtr& conn)
 {
     conn_weak_ = conn;
 }
 
-void RpcChannel::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
-{
-    process(buffer, len);
-}
-
-void RpcChannel::set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services)
+void RpcChannel::set_services(std::unordered_map<std::string, google::protobuf::Service*>* services)
 {
     services_ = services;
 }
 
 // client send request(prepare response object)
-void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
+void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
               google::protobuf::RpcController* controller,
               const google::protobuf::Message* request,
               google::protobuf::Message* response,
@@ -85,7 +82,7 @@ void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
     pack_send(&message);
 }
 
-void RpcChannel::process(ecron::Buffer* buffer, size_t len)
+void RpcChannel::process(Buffer* buffer, size_t len)
 {
     // process rpc meta message
     while (buffer->readable_bytes() >= _HeaderLen)
@@ -101,7 +98,7 @@ void RpcChannel::process(ecron::Buffer* buffer, size_t len)
         const google::protobuf::Descriptor* descriptor = google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName("RpcMessage");
         const google::protobuf::Message* prototype = google::protobuf::MessageFactory::generated_factory()->GetPrototype(descriptor);
 
-        RpcMessagePtr msg(dynamic_cast<RpcMessage*>(prototype->New())); // only RpcMessage
+        std::unique_ptr<RpcMessage> msg(dynamic_cast<RpcMessage*>(prototype->New())); // only RpcMessage
         ErrorCode errorCode = NO_ERROR;
         if (!msg->ParseFromArray(buffer->begin_read() + _HeaderLen, msg_len - _HeaderLen))
             errorCode = INVALID_REQUEST;
@@ -109,7 +106,7 @@ void RpcChannel::process(ecron::Buffer* buffer, size_t len)
         if (errorCode == NO_ERROR)
         {
             // process rpc message
-            process_message(msg);
+            process_message(msg.get());
             buffer->has_readed(msg_len);
             continue;
         }
@@ -117,14 +114,14 @@ void RpcChannel::process(ecron::Buffer* buffer, size_t len)
         {
             //errorCallback_(conn, buf, receiveTime, errorCode);
             LOG_ERROR("RpcChannel decode data error");
-            ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
+            TcpConnectionPtr conn(conn_weak_.lock());
             if (conn)
                 conn->close();
         }
     }
 }
 
-void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
+void RpcChannel::process_message(const RpcMessage* rpcmessage)
 {
     //RpcMessage& message = *messagePtr;
     if (rpcmessage->type() == RESPONSE) // client recv response
@@ -225,7 +222,7 @@ void RpcChannel::process_message(const RpcMessagePtr& rpcmessage)
     else if (rpcmessage->type() == ERROR)
     {
         LOG_TRACE("message type error");
-        ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
+        TcpConnectionPtr conn(conn_weak_.lock());
         if (conn)
             conn->close();
     }
@@ -260,7 +257,7 @@ void RpcChannel::send_resp(int64_t id, int code, google::protobuf::Message* resp
 
 void RpcChannel::pack_send(RpcMessage* msg)
 {
-    ecron::BufferPtr send_buffer = std::make_shared<ecron::Buffer>();
+    BufferPtr send_buffer = std::make_shared<Buffer>();
 
     uint16_t msg_len = msg->ByteSizeLong() + _HeaderLen;
     send_buffer->ensure_writable(msg_len);
@@ -270,14 +267,14 @@ void RpcChannel::pack_send(RpcMessage* msg)
 
     uint8_t* start = reinterpret_cast<uint8_t*>(send_buffer->begin_write());
     uint8_t* end = msg->SerializeWithCachedSizesToArray(start);
-    if (end - start != msg_len - _HeaderLen)
+    if (static_cast<uint16_t>(end - start) != msg_len - _HeaderLen)
     {
         LOG_TRACE("RpcChannel pack_send error {}:{}", end - start, msg_len - _HeaderLen);
         //ByteSizeConsistencyError(byte_size, message.ByteSize(), static_cast<int>(end - start));
     }
     send_buffer->has_written(msg_len - _HeaderLen);
 
-    ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
+    TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
         conn->send(send_buffer);
 }

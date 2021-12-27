@@ -7,9 +7,10 @@
 
 #include "google/protobuf/descriptor.h"
 
+using namespace ecron::net;
 
 
-RpcServer::RpcServer(ecron::net::EventLoop* loop)
+RpcServer::RpcServer(EventLoop* loop)
     : server_(loop, "RpcServer")
 {
     server_.set_connection_callback(std::bind(&RpcServer::on_connection, 
@@ -25,19 +26,22 @@ RpcServer::~RpcServer()
     //workers_.stop();
 }
 
-bool RpcServer::start(const char* strip, unsigned short port)
+bool RpcServer::start(const char* strip, unsigned short port, size_t n_io, size_t n_worker)
 {
     bool ret = true;
 
-    // database
+    num_workers_ = n_worker;
+    if (num_workers_ > 0) {
+        if (0 != workers_.start(num_workers_, 100000)) {
+            LOG_ERROR("RpcServer start workers failed!");
+            return false;
+        }
+    }
 
-    // workers
-
-    // network
-    server_.set_io_threads(1);
+    server_.set_io_threads(n_io);
     ret = server_.start(strip, port);
     if (!ret) {
-        LOG_ERROR("RpcpServer start listen failed!");
+        LOG_ERROR("RpcServer start listen failed!");
         return false;
     }
 
@@ -50,7 +54,7 @@ void RpcServer::register_service(::google::protobuf::Service* service)
     services_[desc->full_name()] = service;
 }
 
-void RpcServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
+void RpcServer::on_connection(const TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
         RpcChannelPtr channel = std::make_shared<RpcChannel>();
@@ -65,10 +69,13 @@ void RpcServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
     }
 }
 
-void RpcServer::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
+void RpcServer::on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t len)
 {
     RpcChannelPtr channel = boost::any_cast<RpcChannelPtr>(conn->get_context());
-    channel->on_recv(conn, buffer, len);
+    if (num_workers_ > 0)
+        workers_.append(std::bind(&RpcChannel::process, channel, buffer, len));
+    else
+        channel->process(buffer, len);
 }
 
 //void RpcServer::on_sendcomplete(const netlib::TcpConnectionPtr& conn)

@@ -8,6 +8,7 @@
 #include <regex>
 
 
+using namespace ecron::net;
 
 
 //void dump_url(const char *url, const struct http_parser_url *u) {
@@ -100,7 +101,7 @@ static int on_headers_complete(http_parser* parser)
         req->keep_alive_ = false;
     else
         req->keep_alive_ = true;
-    req->headercomplete_ = true;
+    //req->headercomplete_ = true;
 
     //printf("\n***HEADERS COMPLETE***\n\n");
     return 0;
@@ -111,11 +112,9 @@ static int on_body(http_parser* parser, const char* at, size_t length)
     // this callback function is probably called more than once
 
     HttpRequest* req = (HttpRequest*)parser->data;
-    //req->http_body_.append(at, length);
+    req->http_body_.append(at, length);
 
     //printf("Body: %.*s\n", (int)length, at);
-
-    req->parse_post(at, length);
     return 0;
 }
 
@@ -123,6 +122,8 @@ static int on_message_complete(http_parser* parser)
 {
     HttpRequest* req = (HttpRequest*)parser->data;
     req->msgcomplete_ = true;
+
+    req->parse_postbody();
 
     //printf("\n***MESSAGE COMPLETE***\n\n");
     return 0;
@@ -142,8 +143,8 @@ static int on_chunk_complete(http_parser* parser)
 
 
 HttpRequest::HttpRequest()
-        : headercomplete_(false)
-        , msgcomplete_(false)
+        //: headercomplete_(false)
+        //, msgcomplete_(false)
 {
 }
 
@@ -178,7 +179,7 @@ void HttpRequest::init()
     http_header_field_.clear();
     http_body_.clear();
 
-    headercomplete_ = false;
+    //headercomplete_ = false;
     msgcomplete_ = false;
     count_parsed_ = 0;
     post_.clear();
@@ -189,7 +190,6 @@ bool HttpRequest::parse(const char* pdata, uint32_t len)
     size_t nparsed = 0;
     nparsed = http_parser_execute(&parser_, &settings_, pdata, len);
     if (HPE_OK != HTTP_PARSER_ERRNO(&parser_)) {
-        //netlib::LOGGER.write_log(netlib::LL_Error, "HttpServer parse error");
         return false;
     }
 
@@ -197,14 +197,18 @@ bool HttpRequest::parse(const char* pdata, uint32_t len)
     return true;
 }
 
-bool HttpRequest::parse_post(const char* at, size_t length)
+bool HttpRequest::parse_postbody()
 {
     if (http_method_ == "POST" 
         && http_headers_["Content-Type"] == "application/x-www-form-urlencoded")
     {
+        const char* at = http_body_.data();
+        size_t length = http_body_.size();
+
         std::string str_field;
         //std::string str_value;
 
+        //https://stackoverflow.com/questions/32553593/c-regex-extract-all-substrings-using-regex-search
         std::regex pattern("(\\w+)=(\\w+)");
         std::cregex_iterator iter(at, at + length, pattern);
         std::cregex_iterator end;

@@ -1,6 +1,7 @@
 #include "RpcController.h"
 #include "Logger.h"
 
+using namespace ecron::net;
 
 //static const std::unordered_map<int, std::string> _CodeError = {
 //    { 0, "" },

@@ -1,5 +1,5 @@
-#ifndef ECRON_THREADGROUP_H_
-#define ECRON_THREADGROUP_H_
+#ifndef ECRON_THREADGROUP_H
+#define ECRON_THREADGROUP_H
 
 
 #include <thread>
@@ -68,4 +68,4 @@ private:
 
 }// namespace ecron
 
-#endif // ECRON_THREADGROUP_H_
+#endif // ECRON_THREADGROUP_H

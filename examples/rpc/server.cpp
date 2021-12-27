@@ -18,10 +18,10 @@ public:
     EchoServiceImpl() {}
     virtual ~EchoServiceImpl() {}
 
-    virtual void Echo(::google::protobuf::RpcController* controller,
+    virtual void Echo(google::protobuf::RpcController* controller,
                        const ::EchoRequest* request,
-                       ::EchoResponse* response,
-                       ::google::protobuf::Closure* done)
+                       EchoResponse* response,
+                       google::protobuf::Closure* done)
     {
         LOG_TRACE("EchoService method Echo : {}", request->message());
         response->set_message(request->message());
@@ -33,10 +33,10 @@ public:
             done->Run();
     }
 
-    virtual void Add(::google::protobuf::RpcController* controller,
-                       const ::AddRequest* request,
-                       ::AddResponse* response,
-                       ::google::protobuf::Closure* done)
+    virtual void Add(google::protobuf::RpcController* controller,
+                       const AddRequest* request,
+                       AddResponse* response,
+                       google::protobuf::Closure* done)
     {
         int32_t a = request->a();
 	    int32_t b = request->b();
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     ecron::LOGGER.set_level(ecron::LL_Trace);
 
     ecron::net::EventLoop loop;
-    RpcServer server(&loop);
+    ecron::net::RpcServer server(&loop);
 
     EchoServiceImpl echo_service;
     server.register_service(&echo_service);

@@ -1,14 +1,16 @@
 #include "HttpServer.h"
-#include "HttpConn.h"
 #include "Logger.h"
 #include "SqlConnPool.h"
 
+//#include <iostream>
 
-#include <iostream>
+
+using namespace ecron::net;
 
 
-HttpServer::HttpServer(ecron::net::EventLoop* loop)
+HttpServer::HttpServer(EventLoop* loop)
     : server_(loop, "HttpServer")
+    , num_workers_(0)
 {
     server_.set_connection_callback(std::bind(&HttpServer::on_connection, 
             this, std::placeholders::_1));
@@ -23,42 +25,38 @@ HttpServer::~HttpServer()
     workers_.stop();
 }
 
-bool HttpServer::start(const char* strip, unsigned short port)
+bool HttpServer::start(const char* strip, unsigned short port, size_t n_io, size_t n_worker)
 {
     bool ret = true;
 
-    // database
-    SqlConnPool* pool = SqlConnPool::Instance();
-    ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 1);
-    if (!ret) {
-        LOG_ERROR("HttpServer start database failed!");
-        return false;
+    num_workers_ = n_worker;
+    if (num_workers_ > 0) {
+        if (0 != workers_.start(num_workers_, 100000)) {
+            LOG_ERROR("HttpServer start workers failed!");
+            return false;
+        }
     }
 
-    // workers
-    if (0 != workers_.start(1, 100000))
-    {
-        LOG_ERROR("HttpServer start worker threads failed!");
-        return false;
-    }
-
-    // network
-    server_.set_io_threads(1);
+    server_.set_io_threads(n_io);
     ret = server_.start(strip, port);
     if (!ret) {
         LOG_ERROR("HttpServer start listen failed!");
+        workers_.stop();
         return false;
     }
 
     return ret;
 }
 
-void HttpServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
+void HttpServer::on_connection(const TcpConnectionPtr& conn)
 {
     if (conn->connected()) {
-        HttpConnPtr http_conn = std::make_shared<HttpConn>();
-        http_conn->init(conn);
-        conn->set_context(http_conn);
+        HttpTaskPtr task = std::make_shared<HttpTask>();
+        task->init(conn);
+        conn->set_context(task);
+
+        task->set_http_callback(http_cb_);
+        task->set_http_body_callback(http_body_cb_);
 
         // security: complete messge timeout
     }
@@ -67,43 +65,46 @@ void HttpServer::on_connection(const ecron::net::TcpConnectionPtr& conn)
     }
 }
 
-void HttpServer::on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len)
+void HttpServer::on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t len)
 {
-    LOG_INFO("{}", buffer->begin_read());
+    LOG_TRACE("{}", buffer->begin_read());
 
-    HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    if (!http_conn->parse(buffer))
+    // no multiple requests at one time
+    HttpTaskPtr task = boost::any_cast<HttpTaskPtr>(conn->get_context());
+    if (!task->parse(buffer))
     {
+        LOG_ERROR("parse http protocol error");
         conn->send("HTTP/1.1 400 Bad Request\r\n\r\n", 28);
-        //conn->close();
+        conn->close();
     }
 
-    if (http_conn->is_complete())
+    if (task->is_complete())
     {
-        // on_request(HttpRequest*, HttpResponse*);
-        workers_.append(std::bind(&HttpConn::process, http_conn));
+        LOG_INFO("request parse OK! method: {}, url: {}", 
+                            task->get_req()->http_method_, task->get_req()->http_url_);
+        if (num_workers_ > 0)
+            workers_.append(std::bind(&HttpTask::on_request, task));
+        else
+            task->on_request();
+    }
+    //else
+    //    LOG_TRACE("request parsed {}, need more data", task->get_req()->count_parsed_);
+}
 
-        // queue<HttpConnPtr> for continuous serveral requests?
-
-        //HttpConnPtr http_new = std::make_shared<HttpConn>();
-        //http_new->init(conn);
-        //conn->set_context(http_new);
+void HttpServer::on_sendcomplete(const TcpConnectionPtr& conn)
+{
+    HttpTaskPtr task = boost::any_cast<HttpTaskPtr>(conn->get_context());
+    if (task->get_isbody()) {
+        if (num_workers_ > 0)
+            workers_.append(std::bind(&HttpTask::on_body, task));
+        else
+            task->on_body();
+    }
+    else {
+        if (task->get_resp()->get_closeconnection())
+            conn->close();
+        else
+            task->init(conn);
     }
 }
-
-void HttpServer::on_sendcomplete(const ecron::net::TcpConnectionPtr& conn)
-{
-    HttpConnPtr http_conn = boost::any_cast<HttpConnPtr>(conn->get_context());
-    if (http_conn->is_body())
-        workers_.append(std::bind(&HttpConn::process_body, http_conn));
-    else
-        http_conn->send_complete(conn);
-}
-
-void HttpServer::on_idle()
-{
-    ecron::LOGGER.flush();
-}
-
-
 

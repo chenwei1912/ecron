@@ -1,54 +1,60 @@
-#ifndef _HTTP_REQUEST_H_
-#define _HTTP_REQUEST_H_
+#ifndef ECRON_NET_HTTPREQUEST_H
+#define ECRON_NET_HTTPREQUEST_H
 
 #include "http_parser.h"
 
 #include <unordered_map>
-//#include <memory>
 
+
+namespace ecron
+{
+namespace net
+{
 
 typedef std::unordered_map<std::string, std::string> stringmap_t;
 //typedef header_t::iterator header_iter_t;
 
-//struct HttpUrl
-//{
-//    std::string schema;
-//    std::string host;
-//    unsigned short port;
-//    std::string path;
-//    std::string query;
-//    std::string fragment;
-//    std::string userinfo;
-//};
-
 class HttpRequest
 {
 public:
+    //struct HttpUrl
+    //{
+    //    std::string schema;
+    //    std::string host;
+    //    unsigned short port;
+    //    std::string path;
+    //    std::string query;
+    //    std::string fragment;
+    //    std::string userinfo;
+    //};
+
     HttpRequest();
     ~HttpRequest();
 
     void init();
     bool parse(const char* pdata, uint32_t len);
+    bool parse_postbody();
 
-    //const std::string& method() const { return parser_.http_method;}
-    bool parse_post(const char* at, size_t length);
+    //inline uint32_t parsed_bytes() const { return count_parsed_; }
+
+    //void set_method(const char*);
+    //const std::string& get_method() const { return parser_.http_method;}
 
     std::string http_method_;
+    //HttpUrl url;
     std::string http_url_;
     //std::string http_version_;
     bool keep_alive_;
-    //HttpUrl url;
 
     stringmap_t http_headers_;
     std::string http_header_field_; //field is waiting for value while parsing
 
     std::string http_body_;
+    stringmap_t post_;
 
-    bool headercomplete_;
+    //bool headercomplete_;
     bool msgcomplete_;
     uint32_t count_parsed_;
-
-    stringmap_t post_;
 
 private:
 
@@ -57,5 +63,8 @@ private:
 
 };
 
-#endif // _HTTP_REQUEST_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_HTTPREQUEST_H
 

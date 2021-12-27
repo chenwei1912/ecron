@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef ECRON_EVENTLOOP_H
-#define ECRON_EVENTLOOP_H
+#ifndef ECRON_NET_EVENTLOOP_H
+#define ECRON_NET_EVENTLOOP_H
 
 #include "TimerId.h"
 
@@ -78,4 +78,4 @@ private:
 }// namespace net
 }// namespace ecron
 
-#endif // ECRON_EVENTLOOP_H
+#endif // ECRON_NET_EVENTLOOP_H
