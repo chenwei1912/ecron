@@ -7,7 +7,7 @@ project(ecron)
 #FILE(GLOB SOURCE_1 "${CMAKE_SOURCE_DIR}/code/*.cpp") 
 #FILE(GLOB SOURCE_2 "${CMAKE_SOURCE_DIR}/examples/*.cpp")
  
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -D__FILENAME__='\"$(subst $(dir $<),,$<)\"'")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -O2 -D__FILENAME__='\"$(subst $(dir $<),,$<)\"'")
 #message(STATUS "cxx flags ${CMAKE_CXX_FLAGS}")
 
 #SET(CMAKE_BUILD_TYPE "Release")
