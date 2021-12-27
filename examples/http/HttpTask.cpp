@@ -1,12 +1,15 @@
-#include "HttpConn.h"
+#include "HttpTask.h"
 #include "Logger.h"
-#include "SqlConnPool.h"
 
 //#include <cstring>
 //#include <climits>
 
 #include <unordered_set>
 #include <unordered_map>
+
+
+using namespace ecron;
+using namespace ecron::net;
 
 //static const std::unordered_map<std::string, std::string> _SuffixType = {
 //    { ".html",  "text/html" },
@@ -44,68 +47,102 @@ static const std::unordered_map<int, std::string> _ErrorCodePath = {
     { 404, "/404.html" },
 };
 
-static const std::unordered_set<std::string> _Route = {
-"/index",
-"/login",
-"/register",
-"/picture",
-"/video",
-"/fans"
-};
+//static const std::unordered_set<std::string> _Route = {
+//"/index",
+//"/login",
+//"/register",
+//"/picture",
+//"/video",
+//"/fans"
+//};
+
+static void defaultHttpCallback(HttpTask* task)
+{
+
+}
+static void defaultHttpBodyCallback(HttpTask* task, Buffer* buffer)
+{
+
+}
 
 
-HttpConn::HttpConn()
+
+HttpTask::HttpTask()
+    : http_cb_(defaultHttpCallback)
+    , http_body_cb_(defaultHttpBodyCallback)
 {
 }
 
-HttpConn::~HttpConn()
+HttpTask::~HttpTask()
 {
     //LOG_TRACE("HttpConn destructing");
-    if (nullptr != file_)
-        fclose(file_);
+    //if (nullptr != file_)
+    //    fclose(file_);
 }
 
-void HttpConn::init(const ecron::net::TcpConnectionPtr& conn)
+void HttpTask::init(const TcpConnectionPtr& conn)
 {
     conn_weak_ = conn;
     request_.init();
     response_.init();
+    
     is_body_ = false;
-    file_ = nullptr;
+    //file_ = nullptr;
+    context_ = nullptr;
 }
 
-bool HttpConn::parse(ecron::Buffer* buffer)
+bool HttpTask::parse(Buffer* buffer)
 {
     if (!request_.parse(buffer->begin_read(), buffer->readable_bytes()))
     {
         //buffer->has_readed(buffer->readable_bytes());
-        LOG_ERROR("parse http protocol error");
-        response_.code_ = 400;
+        //response_.code_ = 400;
         return false;
     }
 
     buffer->has_readed(request_.count_parsed_);
-    if (request_.msgcomplete_) {
-        LOG_INFO("request parse OK! method: {}, url: {}", 
-                                    request_.http_method_, request_.http_url_);
-
-    } else {
-        LOG_TRACE("request parsed {}, need more data", 
-                                    request_.count_parsed_);
-    }
-
     return true;
 }
 
-void HttpConn::send_complete(const ecron::net::TcpConnectionPtr& conn)
+//void HttpTask::send_complete(const ecron::net::TcpConnectionPtr& conn)
+//{
+//    if (response_.get_closeconnection())
+//        conn->close();
+//    else
+//        init(conn);
+//}
+
+void HttpTask::on_request()
 {
-    if (response_.keep_alive_)
-        init(conn);
-    else
-        conn->close();
+    TcpConnectionPtr conn(conn_weak_.lock());
+    if (conn)
+    {
+        http_cb_(this);
+
+        BufferPtr send_buffer = std::make_shared<Buffer>();
+        response_.make_buffer(send_buffer.get());
+        conn->send(send_buffer);
+    }
 }
 
-void HttpConn::process()
+void HttpTask::on_body()
+{
+    TcpConnectionPtr conn(conn_weak_.lock());
+    if (conn)
+    {
+        BufferPtr buffer = std::make_shared<Buffer>();
+        http_body_cb_(this, buffer.get());
+        if (buffer->readable_bytes() > 0) {
+            conn->send(buffer);
+        }
+        //else
+        //    task->send_complete(conn);
+    }
+}
+
+
+/*
+void HttpTask::process()
 {
     ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
@@ -169,9 +206,9 @@ void HttpConn::process()
         response_.make_header(send_buffer.get());
         conn->send(send_buffer);
     }
-}
-
-void HttpConn::process_body()
+}*/
+/*
+void HttpTask::process_body()
 {
     ecron::net::TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
@@ -213,9 +250,9 @@ void HttpConn::process_body()
             conn->send(buffer);
         }
     }
-}
+}*/
 
-//void HttpConn::process_body(const netlib::TcpConnectionPtr& conn)
+//void HttpTask::process_body(const netlib::TcpConnectionPtr& conn)
 //{
 //    if (200 != http_code_)
 //        return;
@@ -241,8 +278,8 @@ void HttpConn::process_body()
 //    }
 //    fclose(pFile);
 //}
-
-void HttpConn::do_post()
+/*
+void HttpTask::do_post()
 {
     if (request_.http_method_ != "POST")
         return;
@@ -283,9 +320,9 @@ void HttpConn::do_post()
         return;
     }
     
-}
-
-bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int login)
+}*/
+/*
+bool HttpTask::user_verify(const std::string& name, const std::string& pwd, int login)
 {
     LOG_INFO("verify user - name: {}, password: {}, login: {}", 
                                 name, pwd, login);
@@ -343,5 +380,5 @@ bool HttpConn::user_verify(const std::string& name, const std::string& pwd, int 
         LOG_INFO("verify user failed!");
     //SqlConnPool::Instance()->FreeConn(sql);
     return flag;
-}
+}*/
 

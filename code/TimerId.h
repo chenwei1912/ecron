@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef ECRON_TIMRID_H
-#define ECRON_TIMRID_H
+#ifndef ECRON_NET_TIMRID_H
+#define ECRON_NET_TIMRID_H
 
 #include <functional>
 
@@ -38,4 +38,4 @@ private:
 }// namespace net
 }// namespace ecron
 
-#endif // ECRON_TIMRID_H
+#endif // ECRON_NET_TIMRID_H

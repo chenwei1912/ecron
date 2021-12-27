@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef ECRON_TCPSERVER_H
-#define ECRON_TCPSERVER_H
+#ifndef ECRON_NET_TCPSERVER_H
+#define ECRON_NET_TCPSERVER_H
 
 
 #include <functional>
@@ -89,4 +89,4 @@ private:
 }// namespace net
 }// namespace ecron
 
-#endif // ECRON_TCPSERVER_H
+#endif // ECRON_NET_TCPSERVER_H

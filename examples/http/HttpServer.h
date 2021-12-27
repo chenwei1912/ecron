@@ -1,32 +1,50 @@
-#ifndef _HTTP_SERVER_H_
-#define _HTTP_SERVER_H_
+#ifndef ECRON_NET_HTTPSERVER_H
+#define ECRON_NET_HTTPSERVER_H
 
 
 #include "EventLoop.h"
 #include "TcpServer.h"
-
 #include "ThreadPool.h"
+#include "HttpTask.h"
 
+
+namespace ecron
+{
+namespace net
+{
 
 class HttpServer
 {
 public:
-    HttpServer(ecron::net::EventLoop* loop);
+    HttpServer(EventLoop* loop);
     ~HttpServer();
+    
+    bool start(const char* strip, unsigned short port, size_t n_io = 0, size_t n_worker = 0);
 
-    bool start(const char* strip, unsigned short port);
-    void on_idle();
+    void set_http_callback(const HttpCallback& cb)
+    {
+        http_cb_ = cb;
+    }
+    void set_http_body_callback(const HttpBodyCallback& cb)
+    {
+        http_body_cb_ = cb;
+    }
 
 private:
-    void on_connection(const ecron::net::TcpConnectionPtr& conn);
-    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
-    void on_sendcomplete(const ecron::net::TcpConnectionPtr& conn);
+    void on_connection(const TcpConnectionPtr& conn);
+    void on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t len);
+    void on_sendcomplete(const TcpConnectionPtr& conn);
 
+    TcpServer server_;
 
-    ecron::net::TcpServer server_;
+    ThreadPool workers_;
+    size_t num_workers_;
 
-    // task thread pool
-    ecron::ThreadPool workers_;
+    HttpCallback http_cb_;
+    HttpBodyCallback http_body_cb_;
 };
 
-#endif // _HTTP_SERVER_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_HTTPSERVER_H

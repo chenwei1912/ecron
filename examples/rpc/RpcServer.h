@@ -1,37 +1,46 @@
-#ifndef _RPC_SERVER_H_
-#define _RPC_SERVER_H_
+#ifndef ECRON_NET_RPCSERVER_H
+#define ECRON_NET_RPCSERVER_H
 
 
 #include "EventLoop.h"
 #include "TcpServer.h"
+#include "ThreadPool.h"
 
 #include "google/protobuf/service.h"
 
 #include <unordered_map>
 
 
+namespace ecron
+{
+namespace net
+{
+
 class RpcServer
 {
 public:
-    RpcServer(ecron::net::EventLoop* loop);
+    RpcServer(EventLoop* loop);
     ~RpcServer();
 
-    bool start(const char* strip, unsigned short port);
+    bool start(const char* strip, unsigned short port, size_t n_io = 0, size_t n_worker = 0);
 
-    void register_service(::google::protobuf::Service* service);
+    void register_service(google::protobuf::Service* service);
 
 private:
-    void on_connection(const ecron::net::TcpConnectionPtr& conn);
-    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
+    void on_connection(const TcpConnectionPtr& conn);
+    void on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t len);
     //void on_sendcomplete(const netlib::TcpConnectionPtr& conn);
     
 
-    ecron::net::TcpServer server_;
+    TcpServer server_;
 
-    // task thread pool
-    //ThreadPool workers_;
+    ThreadPool workers_;
+    size_t num_workers_;
 
-    std::unordered_map<std::string, ::google::protobuf::Service*> services_;
+    std::unordered_map<std::string, google::protobuf::Service*> services_;
 };
 
-#endif // _RPC_SERVER_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_RPCSERVER_H

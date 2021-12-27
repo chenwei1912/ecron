@@ -17,7 +17,7 @@ DEFINE_int32(port, 2007, "TCP Port of remote server");
 class StubImpl
 {
 public:
-    explicit StubImpl(RpcChannel* channel)
+    explicit StubImpl(ecron::net::RpcChannel* channel)
                 : stub_(channel)
                 , log_id_(0) {}
     ~StubImpl() {}
@@ -35,7 +35,7 @@ public:
 
         EchoResponse* response = new EchoResponse;
 
-        RpcController* ctrl = new RpcController;
+        ecron::net::RpcController* ctrl = new ecron::net::RpcController;
         ctrl->set_id(log_id_++);
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
@@ -50,7 +50,7 @@ public:
 
         AddResponse* response = new AddResponse;
 
-        RpcController* ctrl = new RpcController;
+        ecron::net::RpcController* ctrl = new ecron::net::RpcController;
         ctrl->set_id(log_id_++);
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
@@ -59,7 +59,7 @@ public:
 
 private:
 
-    void on_done(RpcController* ctrl, google::protobuf::Message* resp)
+    void on_done(ecron::net::RpcController* ctrl, google::protobuf::Message* resp)
     {
         EchoResponse* echo = dynamic_cast<EchoResponse*>(resp);
         if (nullptr != echo)
@@ -97,10 +97,10 @@ int main(int argc, char* argv[])
     ecron::LOGGER.set_level(ecron::LL_Trace);
 
     ecron::net::EventLoop loop;
-    RpcClient client(&loop);
+    ecron::net::RpcClient client(&loop);
     StubImpl stub(client.get_channel());
 
-    client.set_conn_callback([&loop, &stub](RpcClient* cl){
+    client.set_conn_callback([&loop, &stub](ecron::net::RpcClient* cl){
         if (cl->is_connected())
             loop.add_timer(1, std::bind(&StubImpl::test_method, &stub), true);
         else

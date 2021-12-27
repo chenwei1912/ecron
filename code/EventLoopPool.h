@@ -3,8 +3,8 @@
 //
 // This is an internal header file, you should not include this.
 
-#ifndef ECRON_EVENTLOOPPOOL_H
-#define ECRON_EVENTLOOPPOOL_H
+#ifndef ECRON_NET_EVENTLOOPPOOL_H
+#define ECRON_NET_EVENTLOOPPOOL_H
 
 
 #include <thread>
@@ -50,4 +50,4 @@ private:
 }// namespace net
 }// namespace ecron
 
-#endif // ECRON_EVENTLOOPPOOL_H
+#endif // ECRON_NET_EVENTLOOPPOOL_H

@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef ECRON_TCPCONNECTION_H
-#define ECRON_TCPCONNECTION_H
+#ifndef ECRON_NET_TCPCONNECTION_H
+#define ECRON_NET_TCPCONNECTION_H
 
 #include "Buffer.h"
 
@@ -115,4 +115,4 @@ private:
 }// namespace net
 }// namespace netlib
 
-#endif // ECRON_TCPCONNECTION_H
+#endif // ECRON_NET_TCPCONNECTION_H

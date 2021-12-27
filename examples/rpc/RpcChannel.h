@@ -1,5 +1,5 @@
-#ifndef _RPC_CHANNEL_H_
-#define _RPC_CHANNEL_H_
+#ifndef ECRON_NET_RPCCHANNEL_H
+#define ECRON_NET_RPCCHANNEL_H
 
 
 #include "TcpConnection.h"
@@ -12,11 +12,14 @@
 
 
 class RpcMessage;
-typedef std::shared_ptr<RpcMessage> RpcMessagePtr;
+
+
+namespace ecron
+{
+namespace net
+{
 
 class RpcController;
-
-//typedef std::pair<::google::protobuf::Message*, ::google::protobuf::Closure*> OutstandingCall;
 
 class RpcChannel : public google::protobuf::RpcChannel
 {
@@ -31,40 +34,39 @@ public:
 //  RpcChannel& operator=(RpcChannel&&) = default;
 
     // ----- both side------
-    void set_conn(const ecron::net::TcpConnectionPtr& conn);
-    void on_recv(const ecron::net::TcpConnectionPtr& conn, ecron::Buffer* buffer, size_t len);
+    void set_conn(const TcpConnectionPtr& conn);
+    void process(Buffer* buffer, size_t len);
 
     // ----- server side------
-    void set_services(std::unordered_map<std::string, ::google::protobuf::Service*>* services);
+    void set_services(std::unordered_map<std::string, google::protobuf::Service*>* services);
 
     // ----- client side------
     void CallMethod(const google::protobuf::MethodDescriptor* method,
                       google::protobuf::RpcController* controller,
-                      const ::google::protobuf::Message* request,
+                      const google::protobuf::Message* request,
                       google::protobuf::Message* response,
                       google::protobuf::Closure* done);
 private:
     // ----- both side------
-    struct OutstandingData
-    {
-        google::protobuf::RpcController* ctrl;
-        google::protobuf::Message* response;
-        google::protobuf::Closure* done;
-    };
+//    struct OutstandingData
+//    {
+//        google::protobuf::RpcController* ctrl;
+//        google::protobuf::Message* response;
+//        google::protobuf::Closure* done;
+//    };
 
-    void process(ecron::Buffer* buffer, size_t len);
-    void process_message(const RpcMessagePtr& rpcmessage);
+    void process_message(const RpcMessage* rpcmessage);
     void pack_send(RpcMessage* msg);
 
     //netlib::TcpConnectionPtr conn_;
-    std::weak_ptr<ecron::net::TcpConnection> conn_weak_;
+    std::weak_ptr<TcpConnection> conn_weak_;
     std::unordered_map<int64_t, RpcController*> reqs_;
 
     // ----- server side------
     void on_done(int64_t id, RpcController* ctrl);
     void send_resp(int64_t id, int code, google::protobuf::Message* resp);
         
-    std::unordered_map<std::string, ::google::protobuf::Service*>* services_;
+    std::unordered_map<std::string, google::protobuf::Service*>* services_;
 
     // ----- client side------
     std::atomic<int64_t> id_;
@@ -73,4 +75,7 @@ private:
 
 typedef std::shared_ptr<RpcChannel> RpcChannelPtr;
 
-#endif // _RPC_CHANNEL_H_
+}// namespace net
+}// namespace ecron
+
+#endif // ECRON_NET_RPCCHANNEL_H

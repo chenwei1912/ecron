@@ -3,8 +3,8 @@
 //
 // This is a public header file, it must only include public header files.
 
-#ifndef ECRON_LOCKFREEARRAY_QUEUE_H
-#define ECRON_LOCKFREEARRAY_QUEUE_H
+#ifndef ECRON_LOCKFREEARRAYQUEUE_H
+#define ECRON_LOCKFREEARRAYQUEUE_H
 
 
 #include <vector>
@@ -122,4 +122,4 @@ private:
 
 }// namespace ecron
 
-#endif // ECRON_LOCKFREEARRAY_QUEUE_H
+#endif // ECRON_LOCKFREEARRAYQUEUE_H
