@@ -54,11 +54,6 @@ public:
     }
 };
 
-void on_idle()
-{
-    //std::cout << "idle do something." << std::endl;
-    ecron::LOGGER.flush();
-}
 
 int main(int argc, char* argv[])
 {

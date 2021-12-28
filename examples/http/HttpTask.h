@@ -38,7 +38,7 @@ public:
     inline void set_isbody(bool on) { is_body_ = on; }
     inline bool get_isbody() const { return is_body_; }
 
-    inline HttpRequest* get_req() { return &request_; }
+    inline const HttpRequest* get_req() { return &request_; }
     inline HttpResponse* get_resp() { return &response_; }
 
     void set_http_callback(const HttpCallback& cb)

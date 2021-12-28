@@ -288,12 +288,7 @@ int main(int argc, char* argv[])
         std::cout << "log init failed." << std::endl;
         return -2;
     }
-    ecron::LOGGER.set_level(ecron::LL_Off);
-
-    ecron::net::EventLoop loop;
-    ecron::net::HttpServer server(&loop);
-
-    //dns_test();
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
     SqlConnPool* pool = SqlConnPool::Instance();
     ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 1);
@@ -301,6 +296,9 @@ int main(int argc, char* argv[])
         LOG_ERROR("HttpServer start database failed!");
         return -3;
     }
+    
+    ecron::net::EventLoop loop;
+    ecron::net::HttpServer server(&loop);
 
     server.set_http_callback(on_request);
     server.set_http_body_callback(process_file);

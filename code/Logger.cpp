@@ -1,8 +1,5 @@
-//#include "Utility.h"
 #include "Logger.h"
-#include "ThreadPool.h"
 
-#include <memory>
 //#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE // file name and line number
 //#include "spdlog/spdlog.h"
 //#include "spdlog/common.h"
@@ -13,51 +10,9 @@
 using namespace ecron;
 
 
-class Logger::LoggerImpl
-{
-public:
-	LoggerImpl();
-	~LoggerImpl();
-	
-    bool init(const char* file, bool async = false, bool truncate = false);
-    void release();
+Logger Logger::instance_;
 
-    inline bool is_init() const { return init_; }
-    void flush();
-
-    void set_level(LogLevel lv);
-    LogLevel get_level() const;
-
-    //bool filter_level(LogLevel lv);
-	void log_string(LogLevel lv, const std::string& buffer);
-	void log_buffer(LogLevel lv, const BufferPtr& buffer);
-
-private:
-    void async_log(BufferPtr buffer, spdlog::level::level_enum lv_spd);
-
-    bool init_;
-    std::atomic<LogLevel> lv_;
-
-    std::shared_ptr<spdlog::logger> logger_;
-
-    bool async_;
-    ThreadPool pool_;
-};
-
-Logger::LoggerImpl::LoggerImpl()
-    : init_(false)
-    , lv_(LL_Info)
-    , async_(false)
-{
-    //lv_.store(LL_Info);
-}
-
-Logger::LoggerImpl::~LoggerImpl()
-{
-    release();
-}
-
-bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
+bool Logger::init(const char* strfile, bool async, bool truncate)
 {
     if (init_ || nullptr == strfile)
         return false;
@@ -66,16 +21,17 @@ bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
     {
         if (async)
         {
-            //spdlog::init_thread_pool(81920, 1);
-            //logger_ = spdlog::basic_logger_st<spdlog::async_factory>("basic_logger", strfile, truncate);
-            logger_ = spdlog::basic_logger_st("basic_logger", strfile, truncate);
+            spdlog::init_thread_pool(8192, 1);
+            logger_ = spdlog::basic_logger_st<spdlog::async_factory>("basic_logger", strfile, truncate);
+            //logger_ = spdlog::basic_logger_st("basic_logger", strfile, truncate);
         }
         else
             logger_ = spdlog::basic_logger_mt("basic_logger", strfile, truncate);
 
         //register it if you need to access it globally
-        //spdlog::register_logger(g_logger);
+        //spdlog::register_logger(logger_);
 
+        // set max level for wrap
         spdlog::set_level(spdlog::level::trace);
 
         // %e:ms
@@ -91,34 +47,27 @@ bool Logger::LoggerImpl::init(const char* strfile, bool async, bool truncate)
     }
 
     async_ = async;
-    if (async_)
-        if (!pool_.start(1, 100000))
-            return false;
-
     lv_ = LL_Info;
     init_ = true;
     return true;
 }
 
-void Logger::LoggerImpl::release()
+void Logger::release()
 {
     if (!init_)
         return;
-
-    if (async_)
-    {
-        pool_.stop();
-        async_ = false;
-    }
 
     logger_->flush();
     spdlog::drop("basic_logger");
     spdlog::shutdown();
+
+    if (async_)
+        async_ = false;
     lv_ = LL_Off;
     init_ = false;
 }
 
-void Logger::LoggerImpl::flush()
+void Logger::flush()
 {
     if (!init_)
         return;
@@ -126,7 +75,7 @@ void Logger::LoggerImpl::flush()
     logger_->flush();
 }
 
-void Logger::LoggerImpl::set_level(LogLevel lv)
+void Logger::set_level(LogLevel lv)
 {
     if (!init_)
         return;
@@ -134,147 +83,20 @@ void Logger::LoggerImpl::set_level(LogLevel lv)
     lv_.store(lv);
 }
 
-LogLevel Logger::LoggerImpl::get_level() const
+LogLevel Logger::get_level() const
 {
     if (!init_)
         return LL_Off;
 
-    return lv_.load(std::memory_order::memory_order_relaxed);
+    return lv_.load();
 }
 
-//bool Logger::LoggerImpl::filter_level(LogLevel lv)
-//{
-//    if (!init_ || lv < get_level())
-//        return true;
-
-//     return false;
-//}
-void Logger::LoggerImpl::log_string(LogLevel lv, const std::string& str)
+Logger::Logger()
+    : init_(false)
+    , lv_(LL_Info)
+    , async_(false)
 {
-    spdlog::level::level_enum lv_spd = spdlog::level::off;
-    switch (lv)
-    {
-    case LL_Trace:
-        lv_spd = spdlog::level::trace;
-        break;
-    case LL_Debug:
-        lv_spd = spdlog::level::debug;
-        break;
-    case LL_Info:
-        lv_spd = spdlog::level::info;
-        break;
-    case LL_Warn:
-        lv_spd = spdlog::level::warn;
-        break;
-    case LL_Error:
-        lv_spd = spdlog::level::err;
-        break;
-    case LL_Critical:
-        lv_spd = spdlog::level::critical;
-        break;
-    case LL_Off:
-        lv_spd = spdlog::level::off;
-        break;
-    default:
-        return;
-    }
-
-    if (async_)
-    {
-        BufferPtr buffer = std::make_shared<Buffer>();
-        //if (!buffer) exit();
-        buffer->write(str); // fixme: avoid this copy
-        pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer, lv_spd));
-    }
-    else
-        logger_->log(lv_spd, str);
-    //logger_->flush();
-}
-
-void Logger::LoggerImpl::log_buffer(LogLevel lv, const BufferPtr& buffer)
-{
-    //if (!init_ || lv < level_) // filter log level
-    //    return;
-
-    spdlog::level::level_enum lv_spd = spdlog::level::off;
-    switch (lv)
-    {
-    case LL_Trace:
-        lv_spd = spdlog::level::trace;
-        break;
-    case LL_Debug:
-        lv_spd = spdlog::level::debug;
-        break;
-    case LL_Info:
-        lv_spd = spdlog::level::info;
-        break;
-    case LL_Warn:
-        lv_spd = spdlog::level::warn;
-        break;
-    case LL_Error:
-        lv_spd = spdlog::level::err;
-        break;
-    case LL_Critical:
-        lv_spd = spdlog::level::critical;
-        break;
-    case LL_Off:
-        lv_spd = spdlog::level::off;
-        break;
-    default:
-        return;
-    }
-
-    if (async_)
-    {
-        pool_.append(std::bind(&Logger::LoggerImpl::async_log, this, buffer, lv_spd));
-    }
-    else
-        logger_->log(lv_spd, buffer->begin_read());
-    //logger_->flush();
-}
-
-void Logger::LoggerImpl::async_log(BufferPtr buffer, spdlog::level::level_enum lv_spd)
-{
-    logger_->log(lv_spd, buffer->begin_read());
-}
-
-
-Logger Logger::instance_;
-
-bool Logger::init(const char* file, bool async, bool truncate)
-{
-    return impl_->init(file, async, truncate);
-}
-
-void Logger::release()
-{
-    return impl_->release();
-}
-
-bool Logger::is_init()
-{
-    return impl_->is_init();
-}
-
-void Logger::flush()
-{
-    impl_->flush();
-}
-
-void Logger::set_level(LogLevel lv)
-{
-    impl_->set_level(lv);
-}
-
-LogLevel Logger::get_level() const
-{
-    return impl_->get_level();
-}
-
-Logger::Logger() : impl_(new LoggerImpl())
-{
-    //impl_ = std::make_unique<LoggerImpl>();
-    //impl_ = new LoggerImpl();
+    //lv_.store(LL_Info);
 }
 
 Logger::~Logger()
@@ -282,20 +104,15 @@ Logger::~Logger()
     release();
 }
 
-//bool Logger::filter_level(LogLevel lv) const
+//Logger::Logger() : impl_(new LoggerImpl())
 //{
-//    return impl_->filter_level(lv);
+//    impl_ = std::make_unique<LoggerImpl>();
 //}
 
-void Logger::log_string(LogLevel lv, const std::string& str)
-{
-    return impl_->log_string(lv, str);
-}
-
-void Logger::log_buffer(LogLevel lv, const BufferPtr& buffer)
-{
-    return impl_->log_buffer(lv, buffer);
-}
+//Logger::~Logger()
+//{
+//    release();
+//}
 
 
 //void test_spdlog()
