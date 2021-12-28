@@ -19,6 +19,11 @@ template<typename T>
 class LockFreeArrayQueue
 {
 public:
+    struct elem_t {
+        T data_;
+        std::atomic_int flag_; // empty head tail data
+    }
+    
     explicit LockFreeArrayQueue()
                 : max_count_(0)
                 , head_(0)
@@ -111,8 +116,7 @@ private:
 
     std::size_t max_count_;
     
-    std::vector<std::atomic<T>> data_; // boost::circular_buffer<T>
-    std::vector<std::atomic_int> flag_;
+    std::vector<elem_t> data_; // boost::circular_buffer<T>
 
     std::atomic_size_t head_;
     std::atomic_size_t tail_;
