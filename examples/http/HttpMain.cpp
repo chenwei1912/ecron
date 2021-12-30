@@ -11,8 +11,8 @@
 #include <iostream>
 
 
-DEFINE_string(host, "192.168.17.19", "IP Address of server");
-DEFINE_int32(port, 2007, "TCP Port of remote server");
+DEFINE_string(host, "0.0.0.0", "IP Address of server");
+DEFINE_int32(port, 9876, "TCP Port of remote server");
 DEFINE_string(root_dir, "/home/shared/project/ecron/examples/http/resources", "Http server root directory");
 
 

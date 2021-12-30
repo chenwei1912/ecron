@@ -35,7 +35,7 @@ public:
     TcpClient(const TcpClient&) = delete;
     TcpClient& operator=(const TcpClient&) = delete;
 
-    bool connect(const char* strip, uint16_t port, size_t interval = 10);
+    bool connect(const char* ip_str, uint16_t port, size_t interval = 10);
     void disconnect();
 
     inline EventLoop* get_loop() const { return loop_; }
@@ -56,7 +56,6 @@ private:
     void connect_loop();
     void disconnect_loop();
 
-    
     void handle_connect(const boost::system::error_code& ec);
     void handle_timeout();
 

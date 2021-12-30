@@ -38,15 +38,32 @@ void TcpServer::set_io_threads(size_t n)
     pool_.set_threads(n);
 }
 
-bool TcpServer::start(const char* strip, uint16_t port)
+bool TcpServer::start(uint16_t port)
 {
-    ip::tcp::endpoint ep(ip::make_address_v4(strip), port);
     //ip::tcp::endpoint ep(boost::asio::ip::tcp::v4(), port);
+    return start("0.0.0.0", port);
+}
+
+bool TcpServer::start(const char* ip_str, uint16_t port)
+{
+    if (nullptr == ip_str || 0 == port)
+    {
+        LOG_ERROR("{} start params error", name_);
+        return false;
+    }
 
     boost::system::error_code ec;
+    ip::address_v4 ip_addr = ip::make_address_v4(ip_str, ec);
+    if (ec) {
+        LOG_ERROR("{} ip address error", name_);
+        return false;
+    }
+    
+    ip::tcp::endpoint ep(ip_addr, port);
+
     acceptor_.open(ep.protocol(), ec);
     if (ec) {
-        LOG_ERROR("TcpServer[{}] socket open error : {}", name_, ec.value());
+        LOG_ERROR("{} socket open error : {}", name_, ec.message());
         return false;
     }
 
@@ -54,27 +71,27 @@ bool TcpServer::start(const char* strip, uint16_t port)
     boost::asio::socket_base::reuse_address reuseOption(true);
     acceptor_.set_option(reuseOption, ec);
     if (ec) {
-        LOG_ERROR("TcpServer[{}] socket reuse option error : {}", name_, ec.value());
+        LOG_ERROR("{} set reuse option error : {}", name_, ec.message());
         return false;
     }
 
     boost::asio::socket_base::enable_connection_aborted abortOption(true);
     acceptor_.set_option(abortOption, ec);
     if (ec) {
-        LOG_ERROR("TcpServer[{}] socket enable_connection_aborted option error : {}", name_, ec.value());
+        LOG_ERROR("{} set enable_connection_aborted option error : {}", name_, ec.message());
         return false;
     }
 
     acceptor_.bind(ep, ec);
     if (ec) {
-        LOG_ERROR("TcpServer[{}] socket bing error : {}", name_, ec.value());
+        LOG_ERROR("{} bind error : {}", name_, ec.message());
         return false;
     }
 
     // start listen
     acceptor_.listen(socket_base::max_connections, ec);
     if (ec) {
-        LOG_ERROR("TcpServer[{}] sokect listen error : {}", name_, ec.value());
+        LOG_ERROR("{} listen error : {}", name_, ec.message());
         return false;
     }
 
@@ -83,8 +100,8 @@ bool TcpServer::start(const char* strip, uint16_t port)
 
     loop_->post(std::bind(&TcpServer::accept_loop, this));
 
-    ipport_ = fmt::format("{}:{}", strip, port);
-    LOG_INFO("TcpServer[{}] start listen on {}", name_, ipport_);
+    ipport_ = fmt::format("{}:{}", ip_str, port);
+    LOG_INFO("{} start listen on {}", name_, ipport_);
     return true;
 }
 
@@ -133,7 +150,7 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
 
             // 995	 boost::asio::error::operation_aborted
             // 24    boost::asio::error::no_descriptors
-            LOG_ERROR("TcpServer[{}] accept error: {}", name_, ec.value());
+            LOG_ERROR("{} accept error: {}", name_, ec.value());
             if (boost::asio::error::operation_aborted == ec.value())
                 return; // tcp server close and async op is canceled
             else
@@ -144,7 +161,7 @@ void TcpServer::handle_accept(const TcpConnectionPtr& conn, const boost::system:
 
         conn->init();
 
-        LOG_INFO("TcpServer[{}] accept connection [{}] from {}:{:d}", 
+        LOG_INFO("{} accept connection [{}] from {}:{:d}", 
                     name_, conn->name(), conn->remote_ip(), conn->remote_port());
 
         EventLoop* ioloop = conn->get_loop();
