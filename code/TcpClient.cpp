@@ -21,19 +21,26 @@ TcpClient::~TcpClient()
     LOG_TRACE("TcpClient[{}] destructing", name_);
 }
 
-bool TcpClient::connect(const char* strip, uint16_t port, size_t interval)
+bool TcpClient::connect(const char* ip_str, uint16_t port, size_t interval)
 {
-    if (0 == port || 0 == interval)
+    if (nullptr == ip_str || 0 == port || 0 == interval)
         return false;
 
     if (connecting_.test_and_set())
         return false;
 
-    //ip::tcp::endpoint ep(ip::address_v4::from_string(strip), port);
-    ep_.address(ip::make_address_v4(strip));
+    //ip::tcp::endpoint ep(ip::make_address_v4(ip_str), port);
+    boost::system::error_code ec;
+    ip::address_v4 ip_addr = ip::make_address_v4(ip_str, ec);
+    if (ec) {
+        LOG_ERROR("{} ip address error", name_);
+        return false;
+    }
+
+    ep_.address(ip_addr);
     ep_.port(port);
     interval_ = interval;
-    LOG_INFO("TcpClient[{}] start connect to {}:{}", name_, strip, port);
+    LOG_INFO("{} start connect to {}:{}", name_, ip_str, port);
 
     loop_->post(std::bind(&TcpClient::connect_loop, this));
     return true;

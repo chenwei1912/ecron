@@ -48,7 +48,8 @@ public:
     void set_io_threads(size_t n);
 
     // start listen and wait for accept new connection
-    bool start(const char* strip, uint16_t port);
+    bool start(uint16_t port);
+    bool start(const char* ip_str, uint16_t port);
 
     inline EventLoop* get_loop() const { return loop_; }
     inline void set_connection_callback(const ConnectionCallback& cb)
