@@ -194,7 +194,7 @@ static void defaultHttpCallback(HttpTask* task)
 {
 
 }
-static void defaultHttpBodyCallback(HttpTask* task, Buffer* buffer)
+static void defaultHttpSendCallback(HttpTask* task, Buffer* buffer)
 {
 
 }
@@ -202,7 +202,7 @@ static void defaultHttpBodyCallback(HttpTask* task, Buffer* buffer)
 
 HttpTask::HttpTask()
     : http_cb_(defaultHttpCallback)
-    , http_body_cb_(defaultHttpBodyCallback)
+    , http_send_cb_(defaultHttpSendCallback)
 {
 }
 
@@ -226,7 +226,7 @@ void HttpTask::init(const TcpConnectionPtr& conn)
     request_.init();
     response_.init();
     
-    is_body_ = false;
+    send_progressively_ = false;
     context_ = nullptr;
 }
 
@@ -256,14 +256,6 @@ bool HttpTask::parse(Buffer* buffer)
 //    return true;
 //}
 
-//void HttpTask::send_complete(const ecron::net::TcpConnectionPtr& conn)
-//{
-//    if (response_.get_closeconnection())
-//        conn->close();
-//    else
-//        init(conn);
-//}
-
 void HttpTask::on_request()
 {
     TcpConnectionPtr conn(conn_weak_.lock());
@@ -277,21 +269,32 @@ void HttpTask::on_request()
     }
 }
 
-void HttpTask::on_file()
+void HttpTask::on_send_progressively()
 {
     TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
     {
         BufferPtr buffer = std::make_shared<Buffer>();
-        http_body_cb_(this, buffer.get());
+        http_send_cb_(this, buffer.get());
         if (buffer->readable_bytes() > 0) {
             conn->send(buffer);
         }
-        //else
-        //    task->send_complete(conn);
+        else {
+            if (response_.get_closeconnection())
+                conn->close();
+            else
+                init(conn);
+        }
     }
 }
 
+//void HttpTask::send_complete(const ecron::net::TcpConnectionPtr& conn)
+//{
+//    if (response_.get_closeconnection())
+//        conn->close();
+//    else
+//        init(conn);
+//}
 
 /*
 void HttpTask::process()

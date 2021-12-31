@@ -15,7 +15,7 @@ namespace net
 
 class HttpTask;
 typedef std::function<void(HttpTask*)> HttpCallback;
-typedef std::function<void(HttpTask*, Buffer*)> HttpBodyCallback;
+typedef std::function<void(HttpTask*, Buffer*)> HttpSendCallback;
     
 class HttpTask // represent a request-response process
 {
@@ -29,8 +29,8 @@ public:
     inline HttpRequest* get_req() { return &request_; }
     inline HttpResponse* get_resp() { return &response_; }
 
-    inline void set_isbody(bool on) { is_body_ = on; }
-    inline bool get_isbody() const { return is_body_; }
+    inline void set_send_progressively(bool on) { send_progressively_ = on; }
+    inline bool get_send_progressively() const { return send_progressively_; }
     
     void set_context(void* context) { context_ = context; }
     void* get_context() const { return context_; }
@@ -55,15 +55,16 @@ private:
     inline bool completed() const { return completed_; }
     
     void on_request();
-    void on_file();
+    void on_send_progressively();
+    //void send_complete(const ecron::net::TcpConnectionPtr& conn);
 
     void set_http_callback(const HttpCallback& cb)
     {
         http_cb_ = cb;
     }
-    void set_http_body_callback(const HttpBodyCallback& cb)
+    void set_http_send_callback(const HttpSendCallback& cb)
     {
-        http_body_cb_ = cb;
+        http_send_cb_ = cb;
     }
 
     std::weak_ptr<TcpConnection> conn_weak_;
@@ -71,7 +72,6 @@ private:
     //http_parser_settings settings_;
     http_parser parser_;
     std::string header_field_; //field is waiting for value while parsing
-    //bool headercomplete_;
     bool completed_;
     //size_t count_parsed_;
 
@@ -79,8 +79,8 @@ private:
     HttpResponse response_;
 
     HttpCallback http_cb_;
-    HttpBodyCallback http_body_cb_;
-    bool is_body_;
+    HttpSendCallback http_send_cb_;
+    bool send_progressively_;
     void* context_;
 };
 

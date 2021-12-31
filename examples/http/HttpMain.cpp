@@ -40,14 +40,14 @@ static const std::unordered_map<std::string, std::string> _SuffixType = {
     { ".js",    "text/javascript "}
 };
 
-//static const std::unordered_set<std::string> _Route = {
-//"/index",
-//"/login",
-//"/register",
-//"/picture",
-//"/video",
-//"/fans"
-//};
+static const std::unordered_set<std::string> _Route = {
+"/index",
+"/login",
+"/register",
+"/picture",
+"/video",
+"/fans"
+};
 
 
 static std::string GetFileType(std::string& path)
@@ -217,14 +217,15 @@ void on_request(ecron::net::HttpTask* task)
         }
         else if ("GET" == req->get_method()) {
             path_file = req->get_url();
-            if ("/" == req->get_url())
+            if ("/" == path_file)
                 path_file += "index";
 
             // check GET route
-//            auto it = _Route.find(path_file);
-//            if (it != _Route.end()) {
-//                path_file += ".html";
-//            }
+            // or check dot extend filetype
+            auto it = _Route.find(path_file);
+            if (it != _Route.end()) {
+                path_file += ".html";
+            }
         }
         else {
             LOG_ERROR("http method not support: {}", req->get_method());
@@ -256,7 +257,7 @@ void on_request(ecron::net::HttpTask* task)
             resp->set_content_type(GetFileType(path_file));
             resp->set_content_length(len);
 
-            task->set_isbody(true);
+            task->set_send_progressively(true);
             task->set_context(pfile);
 
             // 403 file access deny
@@ -288,7 +289,10 @@ void process_file(ecron::net::HttpTask* task, ecron::Buffer* buffer)
     size_t readbytes = 0;
     //buffer->ensure_writable(netlib::Buffer::InitialSize);
     readbytes = fread(buffer->begin_write(), 1, ecron::Buffer::InitialSize, pfile);
-    if (readbytes < ecron::Buffer::InitialSize) {
+    if (readbytes > 0) {
+        buffer->has_written(readbytes);
+    }
+    else {
         //if (feof(file_)) {
         //}
         //else if (ferror(file_)) {
@@ -297,16 +301,8 @@ void process_file(ecron::net::HttpTask* task, ecron::Buffer* buffer)
         //LOG_TRACE("response process file complete");
 
         fclose(pfile);
-        task->set_isbody(false);
-        task->set_context(nullptr);
-
-        // no data to trigger send callback
-        // so this assure complete
-        //if (0 == readbytes)
-    }
-
-    if (readbytes > 0) {
-        buffer->has_written(readbytes);
+        //task->set_send_progressively(false);
+        //task->set_context(nullptr);
     }
 }
 
@@ -322,7 +318,7 @@ int main(int argc, char* argv[])
         std::cout << "log init failed." << std::endl;
         return -2;
     }
-    ecron::LOGGER.set_level(ecron::LL_Off);
+    ecron::LOGGER.set_level(ecron::LL_Trace);
 
     SqlConnPool* pool = SqlConnPool::Instance();
     ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 1);
@@ -335,7 +331,7 @@ int main(int argc, char* argv[])
     ecron::net::HttpServer server(&loop);
 
     server.set_http_callback(on_request);
-    server.set_http_body_callback(process_file);
+    server.set_http_send_callback(process_file);
 
     ret = server.start(FLAGS_host.c_str(), FLAGS_port, 1, 1);
     if (!ret) {
