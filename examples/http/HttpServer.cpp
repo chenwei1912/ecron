@@ -55,7 +55,7 @@ void HttpServer::on_connection(const TcpConnectionPtr& conn)
         conn->set_context(task);
 
         task->set_http_callback(http_cb_);
-        task->set_http_body_callback(http_body_cb_);
+        task->set_http_send_callback(http_send_cb_);
 
         // security: complete messge timeout
     }
@@ -93,17 +93,11 @@ void HttpServer::on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t le
 void HttpServer::on_sendcomplete(const TcpConnectionPtr& conn)
 {
     HttpTaskPtr task = boost::any_cast<HttpTaskPtr>(conn->get_context());
-    if (task->get_isbody()) {
+    if (task->get_send_progressively()) {
         if (num_workers_ > 0)
-            workers_.append(std::bind(&HttpTask::on_file, task));
+            workers_.append(std::bind(&HttpTask::on_send_progressively, task));
         else
-            task->on_file();
-    }
-    else {
-        if (task->get_resp()->get_closeconnection())
-            conn->close();
-        else
-            task->init(conn);
+            task->on_send_progressively();
     }
 }
 

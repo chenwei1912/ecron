@@ -25,9 +25,9 @@ public:
     {
         http_cb_ = cb;
     }
-    void set_http_body_callback(const HttpBodyCallback& cb)
+    void set_http_send_callback(const HttpSendCallback& cb)
     {
-        http_body_cb_ = cb;
+        http_send_cb_ = cb;
     }
 
 private:
@@ -41,7 +41,7 @@ private:
     size_t num_workers_;
 
     HttpCallback http_cb_;
-    HttpBodyCallback http_body_cb_;
+    HttpSendCallback http_send_cb_;
 };
 
 }// namespace net
