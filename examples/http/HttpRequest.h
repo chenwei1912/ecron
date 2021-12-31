@@ -1,8 +1,8 @@
 #ifndef ECRON_NET_HTTPREQUEST_H
 #define ECRON_NET_HTTPREQUEST_H
 
-#include "http_parser.h"
 
+#include "Buffer.h"
 #include <unordered_map>
 
 
@@ -11,11 +11,11 @@ namespace ecron
 namespace net
 {
 
-typedef std::unordered_map<std::string, std::string> stringmap_t;
-//typedef header_t::iterator header_iter_t;
-
 class HttpRequest
 {
+
+friend class HttpTask;
+
 public:
     //struct HttpUrl
     //{
@@ -31,35 +31,48 @@ public:
     HttpRequest();
     ~HttpRequest();
 
-    void init();
-    bool parse(const char* pdata, uint32_t len);
-    bool parse_postbody();
+    //void set_method(const std::string& method) { method_ = method; }
+    const std::string& get_method() const { return method_;}
 
-    //inline uint32_t parsed_bytes() const { return count_parsed_; }
+    //void set_url(const std::string& url) { url_ = url; }
+    const std::string& get_url() const { return url_;}
 
-    //void set_method(const char*);
-    //const std::string& get_method() const { return parser_.http_method;}
+    //void set_keepalive(bool on) { keep_alive_ = on; }
+    bool get_keepalive() const { return keep_alive_;}
 
-    std::string http_method_;
-    //HttpUrl url;
-    std::string http_url_;
-    //std::string http_version_;
-    bool keep_alive_;
+    //void set_header(const std::string& key, const std::string& value);
+    //void append_header(const std::string& key, const std::string& value);
+    const std::string* get_header(const char* key) {
+        auto it = headers_.find(key);
+        if (it != headers_.end())
+            return &(it->second);
+        else
+            return nullptr;
+    }
+    const std::string* get_header(const std::string& key) {
+        auto it = headers_.find(key);
+        if (it != headers_.end())
+            return &(it->second);
+        else
+            return nullptr;
+    }
+    
+    //size_t header_count() const { return headers_.size(); }
 
-    stringmap_t http_headers_;
-    std::string http_header_field_; //field is waiting for value while parsing
-
-    std::string http_body_;
-    stringmap_t post_;
-
-    //bool headercomplete_;
-    bool msgcomplete_;
-    uint32_t count_parsed_;
+    Buffer& get_body() { return body_; }
 
 private:
+    void init();
 
-    http_parser_settings settings_;
-    http_parser parser_;
+    std::string method_;
+    //HttpUrl url;
+    std::string url_;
+    //std::string version_;
+    bool keep_alive_;
+
+    std::unordered_map<std::string, std::string> headers_;
+
+    Buffer body_;
 
 };
 

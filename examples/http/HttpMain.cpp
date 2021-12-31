@@ -9,6 +9,7 @@
 #include "gflags/gflags.h"
 
 #include <iostream>
+#include <regex>
 
 
 DEFINE_string(host, "0.0.0.0", "IP Address of server");
@@ -39,14 +40,14 @@ static const std::unordered_map<std::string, std::string> _SuffixType = {
     { ".js",    "text/javascript "}
 };
 
-static const std::unordered_set<std::string> _Route = {
-"/index",
-"/login",
-"/register",
-"/picture",
-"/video",
-"/fans"
-};
+//static const std::unordered_set<std::string> _Route = {
+//"/index",
+//"/login",
+//"/register",
+//"/picture",
+//"/video",
+//"/fans"
+//};
 
 
 static std::string GetFileType(std::string& path)
@@ -61,6 +62,35 @@ static std::string GetFileType(std::string& path)
         return it->second;
 
     return "text/plain";
+}
+
+bool parse_postbody(ecron::Buffer* buffer, std::unordered_map<std::string, std::string>& post)
+{
+    const char* at = buffer->begin_read();
+    size_t length = buffer->readable_bytes();
+
+    std::string str_field;
+    //std::string str_value;
+
+    //https://stackoverflow.com/questions/32553593/c-regex-extract-all-substrings-using-regex-search
+    std::regex pattern("(\\w+)=(\\w+)");
+    std::cregex_iterator iter(at, at + length, pattern);
+    std::cregex_iterator end;
+    for (; iter != end; ++iter)
+    {
+        for (unsigned i = 1; i < iter->size(); ++i) // i=1 means from first sub-match
+        {
+            if (str_field.empty())
+                str_field = (*iter)[i];
+            else
+            {
+                post[str_field] = (*iter)[i];
+                str_field.clear();
+            }
+        }
+    }
+
+    return true;
 }
 
 bool user_verify(const std::string& name, const std::string& pwd, int login)
@@ -126,74 +156,78 @@ void on_request(ecron::net::HttpTask* task)
 {
     std::string path_file;
 
-    const ecron::net::HttpRequest* req = task->get_req();
+    ecron::net::HttpRequest* req = task->get_req();
     ecron::net::HttpResponse* resp = task->get_resp();
 
     do {
         resp->set_code(200);
-        resp->set_closeconnection(!req->keep_alive_);
+        resp->set_closeconnection(!req->get_keepalive());
 
-        if ("POST" == req->http_method_) {
+        if ("POST" == req->get_method()) {
             
             //std::string::size_type n;
             //n = request_.http_url_.find("cgi");
             //if (n == std::string::npos)
             //    return;
-
+            std::unordered_map<std::string, std::string> post_map;
             std::string user;
             std::string pwd;
-            if (!req->post_.empty()) //not robust FIXME:
-            {
-                user = req->post_.at("user");
-                pwd = req->post_.at("password");
+            const std::string* ptype = nullptr;
+            ptype = req->get_header("Content-Type");
+            if (nullptr != ptype && 0 == ptype->compare("application/x-www-form-urlencoded")) {
+                parse_postbody(&(req->get_body()), post_map);
+            }
+            if (!post_map.empty()) {
+                user = post_map.at("user"); // FIXME: not robust
+                pwd = post_map.at("password");
             }
 
-            if (req->http_url_ == "/login")
+            if (req->get_url() == "/login")
             {
                 if (user_verify(user, pwd, 1))
                     path_file = "/welcome.html";
                 else
                     path_file = "/login_error.html";
             }
-            else if (req->http_url_ == "/register")
+            else if (req->get_url() == "/register")
             {
                 if (user_verify(user, pwd, 0))
                     path_file = "/login.html";
                 else
                     path_file = "/register_error.html";
             }
-            else if (req->http_url_ == "/picture")
+            else if (req->get_url() == "/picture")
             {
                 path_file = "/picture.html";
             }
-            else if (req->http_url_ == "/video")
+            else if (req->get_url() == "/video")
             {
                 path_file = "/video.html";
             }
-            else if (req->http_url_ == "/fans")
+            else if (req->get_url() == "/fans")
             {
                 path_file = "/fans.html";
             }
             else
             {
-                LOG_ERROR("post method not support url: {}", req->http_url_);
+                LOG_ERROR("post method not support url: {}", req->get_url());
                 resp->set_code(404);
                 break;
             }
         }
-        else if ("GET" == req->http_method_) {
-            path_file = req->http_url_;
-            if ("/" == req->http_url_)
+        else if ("GET" == req->get_method()) {
+            path_file = req->get_url();
+            if ("/" == req->get_url())
                 path_file += "index";
 
             // check GET route
-            auto it = _Route.find(path_file);
-            if (it != _Route.end()) {
-                path_file += ".html";
-            }
+//            auto it = _Route.find(path_file);
+//            if (it != _Route.end()) {
+//                path_file += ".html";
+//            }
         }
         else {
-            LOG_ERROR("http method not support: {}", req->http_method_);
+            LOG_ERROR("http method not support: {}", req->get_method());
             resp->set_code(400);
             break;
         }
@@ -288,7 +322,7 @@ int main(int argc, char* argv[])
         std::cout << "log init failed." << std::endl;
         return -2;
     }
-    ecron::LOGGER.set_level(ecron::LL_Trace);
+    ecron::LOGGER.set_level(ecron::LL_Off);
 
     SqlConnPool* pool = SqlConnPool::Instance();
     ret = pool->Init("localhost", 3306, "root", "378540", "webserver", 1);
