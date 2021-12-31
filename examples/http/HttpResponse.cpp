@@ -1,5 +1,6 @@
 #include "HttpResponse.h"
-#include "Logger.h"
+//#include "Logger.h"
+#include "spdlog/fmt/fmt.h"
 
 
 using namespace ecron::net;
@@ -43,12 +44,7 @@ void HttpResponse::init()
     content_type_.clear();
     content_len_ = 0;
     headers_.clear();
-    body_.clear();
-}
-
-void HttpResponse::set_header(const std::string& key, const std::string& value)
-{
-    headers_[key] = value;
+    body_.has_readall();
 }
 
 void HttpResponse::make_buffer(Buffer* buffer)
@@ -82,8 +78,6 @@ void HttpResponse::make_buffer(Buffer* buffer)
     }
 
     buffer->write("\r\n");
-
-    if (!body_.empty())
-        buffer->write(body_);
+    buffer->write(body_.begin_read(), body_.readable_bytes());
 }
 

@@ -1,6 +1,5 @@
 #include "HttpServer.h"
 #include "Logger.h"
-#include "SqlConnPool.h"
 
 //#include <iostream>
 
@@ -78,10 +77,10 @@ void HttpServer::on_recv(const TcpConnectionPtr& conn, Buffer* buffer, size_t le
         conn->close();
     }
 
-    if (task->is_complete())
+    if (task->completed())
     {
         LOG_INFO("request parse OK! method: {}, url: {}", 
-                            task->get_req()->http_method_, task->get_req()->http_url_);
+                            task->get_req()->get_method(), task->get_req()->get_url());
         if (num_workers_ > 0)
             workers_.append(std::bind(&HttpTask::on_request, task));
         else
@@ -96,9 +95,9 @@ void HttpServer::on_sendcomplete(const TcpConnectionPtr& conn)
     HttpTaskPtr task = boost::any_cast<HttpTaskPtr>(conn->get_context());
     if (task->get_isbody()) {
         if (num_workers_ > 0)
-            workers_.append(std::bind(&HttpTask::on_body, task));
+            workers_.append(std::bind(&HttpTask::on_file, task));
         else
-            task->on_body();
+            task->on_file();
     }
     else {
         if (task->get_resp()->get_closeconnection())
