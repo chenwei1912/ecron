@@ -23,7 +23,7 @@ public:
                        EchoResponse* response,
                        google::protobuf::Closure* done)
     {
-        LOG_TRACE("EchoService method Echo : {}", request->message());
+        LOG_INFO("EchoService method Echo : {}", request->message());
         response->set_message(request->message());
 
         // fill RpcController result
@@ -41,7 +41,7 @@ public:
         int32_t a = request->a();
 	    int32_t b = request->b();
 
-        LOG_TRACE("EchoService method Add : {},{}", a, b);
+        LOG_INFO("EchoService method Add : {},{}", a, b);
 
 	    response->set_result(a + b);
 

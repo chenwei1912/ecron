@@ -11,11 +11,12 @@
 #include <utility>
 
 
-class RpcMessage;
-
 
 namespace ecron
 {
+
+class RpcMeta;
+
 namespace net
 {
 
@@ -55,8 +56,11 @@ private:
 //        google::protobuf::Closure* done;
 //    };
 
-    void process_message(const RpcMessage* rpcmessage);
-    void pack_send(RpcMessage* msg);
+    void process_message(const RpcMeta* meta, const char* msg, size_t n);
+    //void process_request(const RpcMeta* meta, const char* msg, size_t n);
+    //void process_response(const RpcMeta* meta, const char* msg, size_t n);
+    
+    void pack_send(RpcMeta* meta, const google::protobuf::Message* msg);
 
     //netlib::TcpConnectionPtr conn_;
     std::weak_ptr<TcpConnection> conn_weak_;

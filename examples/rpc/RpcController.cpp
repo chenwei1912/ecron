@@ -14,14 +14,14 @@ using namespace ecron::net;
 
 
 RpcController::RpcController()
-//    : loop_(loop)
-//    , server_(loop, "HttpServer")
-{
+    : response_(nullptr)
+    , done_(nullptr)
+    , error_code_(0)
+    , log_id_(0) {
 }
 
-RpcController::~RpcController()
-{
-    LOG_TRACE("RpcController destructing");
+RpcController::~RpcController() {
+    //LOG_TRACE("RpcController destructing");
 }
 
 void RpcController::reset()
@@ -29,18 +29,56 @@ void RpcController::reset()
     response_ = nullptr;
     done_ = nullptr;
 
-    error_.clear();
+    error_text_.clear();
+    error_code_ = 0;
     log_id_ = 0;
 }
 
-void RpcController::set_id(int id)
+void RpcController::set_error_code(int ec) {
+    error_code_ = ec;
+}
+
+int RpcController::get_error_code() const {
+    return error_code_;
+}
+
+void RpcController::set_log_id(int id)
 {
     log_id_ = id;
 }
 
-int RpcController::get_id() const
+int RpcController::get_log_id() const
 {
     return log_id_;
+}
+
+void RpcController::Reset() {
+    reset();
+}
+
+bool RpcController::Failed() const {
+    return (0 != error_code_);
+}
+
+std::string RpcController::ErrorText() const {
+    return error_text_;
+};
+
+void RpcController::StartCancel() {
+
+}
+
+void RpcController::SetFailed(const std::string& reason) {
+    error_text_ = reason;
+    error_code_ = -1; // FIXME: map code?
+}
+
+bool RpcController::IsCanceled() const {
+    return false;
+}
+
+void RpcController::NotifyOnCancel(google::protobuf::Closure* callback) {
+
 }
 
 //std::string RpcController::ErrorText() const

@@ -6,21 +6,24 @@
 #include "google/protobuf/descriptor.h"
 #include "boost/asio.hpp"
 
-#include "rpc.pb.h"
+#include "rpc_meta.pb.h"
+
 
 using namespace ecron::net;
 
 
 static const std::unordered_map<int, std::string> _CodeError = {
-    { 0, "" },
-    { 1, "no service" },
-    { 2, "no method" },
-    { 3, "invalid request" },
-    { 4, "invalid response" },
-    { 5, "invoke timeout" },
+    //{ 0, "ok" },
+    { 1001, "no service" },
+    { 1002, "no method" },
+    { 1003, "invalid request" },
+    { 1004, "invalid response" },
+    { 1005, "internal error" },
 };
 
-static const size_t _HeaderLen = 2;
+
+// 12-byte header [ERPC][body_size][meta_size]
+static const size_t _HeaderLen = 12;
 
 
 
@@ -36,7 +39,7 @@ RpcChannel::RpcChannel()
 
 RpcChannel::~RpcChannel()
 {
-    LOG_TRACE("RpcChannel destructing");
+    //LOG_TRACE("RpcChannel destructing");
     for (const auto& item : reqs_)
     {
         RpcController* ctrl = item.second;
@@ -64,13 +67,13 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
               google::protobuf::Closure* done)
 {   
     // packed request
-    RpcMessage message;
-    message.set_type(REQUEST);
+    RpcMeta meta;
     int64_t id = id_.fetch_add(1);
-    message.set_id(id);
-    message.set_service(method->service()->full_name());
-    message.set_method(method->name());
-    message.set_request(request->SerializeAsString());
+    meta.set_correlation_id(id);
+    RpcRequestMeta* request_meta = meta.mutable_request();
+    request_meta->set_service_name(method->service()->full_name());
+    request_meta->set_method_name(method->name());
+    //message.set_request(request->SerializeAsString());
 
     // save request associated info
     RpcController* ctrl = static_cast<RpcController*>(controller);
@@ -79,41 +82,61 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     reqs_[id] = ctrl;
 
     // send request
-    pack_send(&message);
+    pack_send(&meta, request);
 }
 
 void RpcChannel::process(Buffer* buffer, size_t len)
 {
-    // process rpc meta message
+    // process rpc protocol
     while (buffer->readable_bytes() >= _HeaderLen)
     {
-        uint16_t msg_len = 0;
-        memcpy(&msg_len, buffer->begin_read(), _HeaderLen);
-        msg_len = boost::asio::detail::socket_ops::network_to_host_short(msg_len);
+        // ================= parse header ====================
+        //char header[_HeaderLen] = { 0 };
+        char* header = const_cast<char*>(buffer->begin_read());
+        uint32_t body_len = 0;
+        uint32_t meta_len = 0;
+        //memcpy(header, buffer->begin_read(), _HeaderLen);
 
-        // header_len range?
-        if (buffer->readable_bytes() < msg_len)
+        if (0 != memcmp(header, "ERPC", 4)) { // check identifier
+            LOG_ERROR("header identifier error");
             return;
+        }
 
-        const google::protobuf::Descriptor* descriptor = google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName("RpcMessage");
-        const google::protobuf::Message* prototype = google::protobuf::MessageFactory::generated_factory()->GetPrototype(descriptor);
+        int32_t* temp = reinterpret_cast<int32_t*>(header + 4);
+        body_len = boost::asio::detail::socket_ops::network_to_host_long(*temp);
+        temp = reinterpret_cast<int32_t*>(header + 8);
+        meta_len = boost::asio::detail::socket_ops::network_to_host_long(*temp);
 
-        std::unique_ptr<RpcMessage> msg(dynamic_cast<RpcMessage*>(prototype->New())); // only RpcMessage
-        ErrorCode errorCode = NO_ERROR;
-        if (!msg->ParseFromArray(buffer->begin_read() + _HeaderLen, msg_len - _HeaderLen))
-            errorCode = INVALID_REQUEST;
-        //ErrorCode errorCode = parse(buf->peek()+kHeaderLen, len, message.get());
-        if (errorCode == NO_ERROR)
+        //if (body_len > max_length) { // check body length of body and meta
+        //    return;
+        //}
+        if (body_len < meta_len) {
+            LOG_ERROR("header len error: {} {}", body_len, meta_len);
+            return;
+        }
+
+        if (buffer->readable_bytes() < _HeaderLen + body_len) { // not complete message
+            return;
+        }
+
+        // ================= parse meta ====================
+        ErrorCode errorCode = ENOERROR;
+        RpcMeta meta;
+        if (!meta.ParseFromArray(buffer->begin_read() + _HeaderLen, meta_len)) {
+            errorCode = EREQUEST;
+        }
+
+        // ================= parse user define message ====================
+        if (errorCode == ENOERROR)
         {
-            // process rpc message
-            process_message(msg.get());
-            buffer->has_readed(msg_len);
+            process_message(&meta, buffer->begin_read() + _HeaderLen + meta_len, body_len - meta_len);
+            buffer->has_readed(_HeaderLen + body_len);
             continue;
         }
         else
         {
             //errorCallback_(conn, buf, receiveTime, errorCode);
-            LOG_ERROR("RpcChannel decode data error");
+            LOG_ERROR("parse rpc data error");
             TcpConnectionPtr conn(conn_weak_.lock());
             if (conn)
                 conn->close();
@@ -121,158 +144,193 @@ void RpcChannel::process(Buffer* buffer, size_t len)
     }
 }
 
-void RpcChannel::process_message(const RpcMessage* rpcmessage)
+void RpcChannel::process_message(const RpcMeta* meta, const char* msg, size_t n)
 {
-    //RpcMessage& message = *messagePtr;
-    if (rpcmessage->type() == RESPONSE) // client recv response
-    {
-        int64_t id = rpcmessage->id();
-        //assert(message.has_response() || message.has_error());
+    ErrorCode error = ENOERROR;
+    int64_t id = meta->correlation_id();
 
-        //google::protobuf::Message* response = nullptr;
-        //google::protobuf::Closure* done = nullptr;
+    if (meta->has_response()) { // client recv response
+        LOG_TRACE("proc response id: {}, code: {}, text: {}", id,
+                    meta->response().error_code(), meta->response().error_text());
+
         RpcController* controller = nullptr;
         auto it = reqs_.find(id);
-        if (it != reqs_.end())
-        {
+        if (it != reqs_.end()) {
             controller = it->second;
             reqs_.erase(it);
         }
 
         std::unique_ptr<RpcController> ctrl(controller);
-        if (ctrl)
-        {
+        if (ctrl) {
             std::unique_ptr<google::protobuf::Message> resp(ctrl->get_resp());
-            if (resp)
-            {
-                //if (message.has_response())
-                resp->ParseFromString(rpcmessage->response());
+            if (resp) {
+                if (resp->ParseFromArray(msg, n)) {
+                }
+                else {
+                    error = ERESPONSE;
+                }
 
                 //RpcController* ctrl = dynamic_cast<RpcMessage*>(out.ctrl);
                 //ctrl.reset(out.ctrl);
-
-                auto it = _CodeError.find(static_cast<int>(rpcmessage->error()));
-                if (it != _CodeError.end())
-                    ctrl->SetFailed(it->second);
-
-                // self delete
-                if (nullptr != ctrl->get_done())
-                    ctrl->get_done()->Run();
             }
+
+            auto it = _CodeError.find(error);
+            if (it != _CodeError.end()) {
+                ctrl->SetFailed(it->second);
+            }
+
+            // self delete
+            if (nullptr != ctrl->get_done())
+                ctrl->get_done()->Run();
         }
     }
-    else if (rpcmessage->type() == REQUEST) // server recv request
-    {
+    else if (meta->has_request()) { // server recv request
         // FIXME: extract to a function
-        ErrorCode error = NO_ERROR;
+        LOG_TRACE("proc request id: {}, service: {}, method: {}", id,
+                    meta->request().service_name(), meta->request().method_name());
         if (nullptr != services_)
         {
-            auto it = services_->find(rpcmessage->service());
+            auto it = services_->find(meta->request().service_name());
             if (it != services_->end())
             {
                 google::protobuf::Service* service = it->second;
                 //assert(service != NULL);
                 const google::protobuf::ServiceDescriptor* desc = service->GetDescriptor();
-                const google::protobuf::MethodDescriptor* method = desc->FindMethodByName(rpcmessage->method());
+                const google::protobuf::MethodDescriptor* method = desc->FindMethodByName(meta->request().method_name());
                 if (nullptr != method)
                 {
                     std::unique_ptr<google::protobuf::Message> request(service->GetRequestPrototype(method).New());
-                    if (request->ParseFromString(rpcmessage->request()))
+                    if (request->ParseFromArray(msg, n))
                     {
-                        std::unique_ptr<google::protobuf::Message> response(service->GetResponsePrototype(method).New());
-                        std::unique_ptr<RpcController> ctrl(new RpcController);
-                        int64_t id = rpcmessage->id();
+                        google::protobuf::Message* response = service->GetResponsePrototype(method).New();
+                        RpcController* ctrl = new (std::nothrow) RpcController;
 
                         // done self delete
-                        auto done = google::protobuf::NewCallback(this, &RpcChannel::on_done, id, ctrl.get());
+                        auto done = google::protobuf::NewCallback(this, &RpcChannel::on_done, id, ctrl);
 
-                        ctrl->set_resp(response.get());
+                        ctrl->set_resp(response);
                         ctrl->set_done(done);
-                        //reqs_[id] = ctrl.get();
 
-                        // call the server's method
-                        service->CallMethod(method, ctrl.get(), request.get(), response.get(), done);
-                        error = NO_ERROR;
+                        // call server's user-defined method(sync or async)
+                        service->CallMethod(method, ctrl, request.get(), response, done);
+                        error = ENOERROR;
                     }
                     else
                     {
-                        error = INVALID_REQUEST;
+                        error = EREQUEST;
                     }
                 }
                 else
                 {
-                    error = NO_METHOD;
+                    error = ENOMETHOD;
                 }
             }
             else
             {
-                error = NO_SERVICE;
+                error = ENOSERVICE;
             }
         }
         else
         {
-           error = NO_SERVICE;
+           error = ENOSERVICE;
         }
 
-        if (error != NO_ERROR)
-        {
-            send_resp(rpcmessage->id(), error, nullptr);
+        if (error != ENOERROR) {
+            LOG_ERROR("proc request error: {}", error);
+            send_resp(meta->correlation_id(), error, nullptr);
         }
     }
-    else if (rpcmessage->type() == ERROR)
-    {
-        LOG_TRACE("message type error");
-        TcpConnectionPtr conn(conn_weak_.lock());
-        if (conn)
-            conn->close();
-    }
+//    else if (rpcmessage->type() == ERROR)
+//    {
+//        LOG_TRACE("message type error");
+//        TcpConnectionPtr conn(conn_weak_.lock());
+//        if (conn)
+//            conn->close();
+//    }
 }
 
-// this callback is for server side after user define method invoke
+// this callback is for server side after user-defined method invoked
 void RpcChannel::on_done(int64_t id, RpcController* ctrl)
 {
-    // process result use RpcController
-//    ErrorCode error = NO_ERROR;
-//    if (nullptr != ctrl)
-//    {
-//        if (ctrl->Failed())
-//            error = INVALID_REQUEST;
-//    }
+    //LOG_TRACE("callback result use control");
+    ErrorCode error = ENOERROR;
+    google::protobuf::Message* response = ctrl->get_resp();
+    if (ctrl->Failed()) {
+        LOG_TRACE("server method result error: {}", ctrl->ErrorText());
+        error = EINTERNAL; // FIXME: process specific error
+    }
+    send_resp(id, error, response);
 
-    send_resp(id, NO_ERROR, ctrl->get_resp());
+    delete response;
+    delete ctrl;
+    // done self delete
 }
 
 void RpcChannel::send_resp(int64_t id, int code, google::protobuf::Message* resp)
 {
-    RpcMessage message;
-    message.set_type(RESPONSE);
-    message.set_id(id);
-    message.set_error(static_cast<ErrorCode>(code));
-    if (nullptr != resp)
-        message.set_response(resp->SerializeAsString()); // FIXME: error check
+    RpcMeta meta;
+    meta.set_correlation_id(id);
+    RpcResponseMeta* response_meta = meta.mutable_response();
+    response_meta->set_error_code(code);
+    auto it = _CodeError.find(code);
+    if (it != _CodeError.end()) {
+        response_meta->set_error_text(it->second);
+    }
     
     // send response
-    pack_send(&message);
+    pack_send(&meta, resp);
 }
 
-void RpcChannel::pack_send(RpcMessage* msg)
+void RpcChannel::pack_send(RpcMeta* meta, const google::protobuf::Message* msg)
 {
     BufferPtr send_buffer = std::make_shared<Buffer>();
 
-    uint16_t msg_len = msg->ByteSizeLong() + _HeaderLen;
-    send_buffer->ensure_writable(msg_len);
+    uint32_t meta_len = meta->ByteSizeLong();
+    uint32_t msg_len = (msg != nullptr ? msg->ByteSizeLong() : 0); // not compress
+    uint32_t body_len = meta_len + msg_len; // + attatchment
 
-    uint16_t be16 = boost::asio::detail::socket_ops::host_to_network_short(msg_len);
-    send_buffer->write(reinterpret_cast<const char*>(&be16), _HeaderLen);
+    send_buffer->ensure_writable(body_len + _HeaderLen);
 
+    // ================= pack header ====================
+    char header[_HeaderLen] = {"ERPC"};
+
+    // 4-bytes body length
+    //uint32_t be32 = boost::asio::detail::socket_ops::host_to_network_long(body_len);
+    //send_buffer->write(reinterpret_cast<const char*>(&be32), 4);
+    int32_t* temp = reinterpret_cast<int32_t*>(header + 4);
+    *temp = boost::asio::detail::socket_ops::host_to_network_long(body_len);
+
+    // 4-bytes meta length
+    //be32 = boost::asio::detail::socket_ops::host_to_network_long(meta_len);
+    //send_buffer->write(reinterpret_cast<const char*>(&be32), 4);
+    temp = reinterpret_cast<int32_t*>(header + 8);
+    *temp = boost::asio::detail::socket_ops::host_to_network_long(meta_len);
+
+    send_buffer->write(header, _HeaderLen);
+
+    // ================= pack body(meta) ====================
     uint8_t* start = reinterpret_cast<uint8_t*>(send_buffer->begin_write());
-    uint8_t* end = msg->SerializeWithCachedSizesToArray(start);
-    if (static_cast<uint16_t>(end - start) != msg_len - _HeaderLen)
+    uint8_t* end = meta->SerializeWithCachedSizesToArray(start);
+    if (static_cast<uint32_t>(end - start) != meta_len)
     {
-        LOG_TRACE("RpcChannel pack_send error {}:{}", end - start, msg_len - _HeaderLen);
+        LOG_ERROR("channel pack meta error {}:{}", end - start, meta_len);
         //ByteSizeConsistencyError(byte_size, message.ByteSize(), static_cast<int>(end - start));
     }
-    send_buffer->has_written(msg_len - _HeaderLen);
+    send_buffer->has_written(meta_len);
+
+    // ================= pack body(user defined message) ====================
+    if (msg_len > 0) {
+        start = reinterpret_cast<uint8_t*>(send_buffer->begin_write());
+        end = msg->SerializeWithCachedSizesToArray(start);
+        if (static_cast<uint32_t>(end - start) != msg_len)
+        {
+            LOG_ERROR("channel pack msg error {}:{}", end - start, msg_len);
+            //ByteSizeConsistencyError(byte_size, message.ByteSize(), static_cast<int>(end - start));
+        }
+        send_buffer->has_written(msg_len);
+    }
+
+    // ================= pack body(attatchment) ====================
 
     TcpConnectionPtr conn(conn_weak_.lock());
     if (conn)
