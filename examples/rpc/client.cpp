@@ -36,7 +36,7 @@ public:
         EchoResponse* response = new EchoResponse;
 
         ecron::net::RpcController* ctrl = new ecron::net::RpcController;
-        ctrl->set_id(log_id_++);
+        ctrl->set_log_id(log_id_++);
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
         stub_.Echo(ctrl, &request, response, done);
@@ -51,7 +51,7 @@ public:
         AddResponse* response = new AddResponse;
 
         ecron::net::RpcController* ctrl = new ecron::net::RpcController;
-        ctrl->set_id(log_id_++);
+        ctrl->set_log_id(log_id_++);
         auto done = google::protobuf::NewCallback(this, &StubImpl::on_done, 
                             ctrl, static_cast<google::protobuf::Message*>(response));
         stub_.Add(ctrl, &request, response, done);
@@ -61,16 +61,21 @@ private:
 
     void on_done(ecron::net::RpcController* ctrl, google::protobuf::Message* resp)
     {
+        if (ctrl->Failed()) {
+            LOG_ERROR("clinet invoke error: {}", ctrl->ErrorText());
+            return;
+        }
+
         EchoResponse* echo = dynamic_cast<EchoResponse*>(resp);
         if (nullptr != echo)
         {
-            LOG_INFO("RpcClient echo {} result: {}", ctrl->get_id(), echo->message());
+            LOG_INFO("clinet echo {} result: {}", ctrl->get_log_id(), echo->message());
             return;
         }
         AddResponse* add = dynamic_cast<AddResponse*>(resp);
         if (nullptr != add)
         {
-            LOG_INFO("RpcClient add {} result: {}", ctrl->get_id(), add->result());
+            LOG_INFO("client add {} result: {}", ctrl->get_log_id(), add->result());
             return;
         }
 

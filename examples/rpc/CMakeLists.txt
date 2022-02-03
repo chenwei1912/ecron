@@ -6,8 +6,8 @@
 #link_libraries(libecron.a)
 link_libraries(libgflags.a)
 
-add_executable(rpc_server server.cpp RpcServer.cpp RpcChannel.cpp RpcController.cpp rpc.pb.cc my_service.pb.cc)
-add_executable(rpc_client client.cpp RpcClient.cpp RpcChannel.cpp RpcController.cpp rpc.pb.cc my_service.pb.cc)
+add_executable(rpc_server server.cpp RpcServer.cpp RpcChannel.cpp RpcController.cpp rpc_meta.pb.cc my_service.pb.cc)
+add_executable(rpc_client client.cpp RpcClient.cpp RpcChannel.cpp RpcController.cpp rpc_meta.pb.cc my_service.pb.cc)
 
 target_link_libraries(rpc_server protobuf pthread)
 target_link_libraries(rpc_client protobuf pthread)
